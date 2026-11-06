@@ -158,6 +158,21 @@ export function buildCity(scene: Scene): CityRender {
     box(`terminal_screen_${g.id}`, 0.7, 0.9, 0.15, g.terminal.x, STREET_Y + 1.7, g.terminal.z + 0.45, terminalScreenMat).rotation.x = -0.35;
   }
 
+  // ── Deploy/extract tram: lit pad + tall beacon beam (visible city-wide) ─
+  const tramPadMat = mat(scene, 'tramPad', 0.5, 0.65, 0.8, 0.4);
+  const tramBeamMat = new StandardMaterial('tramBeam', scene);
+  tramBeamMat.emissiveColor = new Color3(0.3, 0.8, 1.0);
+  tramBeamMat.diffuseColor = new Color3(0, 0, 0);
+  tramBeamMat.alpha = 0.22;
+  tramBeamMat.disableDepthWrite = true;
+  const D = CITY.deploy;
+  box('tram_pad', 7, 0.14, 7, D.x, STREET_Y + 0.07, D.z, tramPadMat);
+  addRim({ x0: D.x - 3.5, z0: D.z - 3.5, x1: D.x + 3.5, z1: D.z + 3.5 }, STREET_Y + 0.16);
+  const beam = MeshBuilder.CreateCylinder('tram_beam', { diameter: 1.6, height: 90, tessellation: 12 }, scene);
+  beam.position.set(D.x, STREET_Y + 45, D.z);
+  beam.material = tramBeamMat;
+  beam.isPickable = false;
+
   // ── Objective relays: pylons with an activation ring ──────────────────
   const relayMat = mat(scene, 'relayPylon', 0.3, 0.35, 0.42);
   const relayRingOff = mat(scene, 'relayRingOff', 0.5, 0.5, 0.55, 0.4);

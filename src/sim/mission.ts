@@ -82,6 +82,6 @@ export function objectiveLines(mission: MissionState, kills: number): string[] {
     `RELAYS ${relays}/${mission.relays.length}`,
     `HOSTILES ${Math.min(kills, mission.killsRequired)}/${mission.killsRequired}`,
   ];
-  if (mission.completed) lines.unshift('★ EXTRACT AT THE TRAM');
+  if (mission.completed) lines.unshift('★ EXTRACT AT THE DEPLOY TRAM (beacon of light)');
   return lines;
 }

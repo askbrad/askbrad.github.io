@@ -10,7 +10,7 @@ import { createWorld, stepWorld } from './sim/world';
 import { STREET_Y, floorAt, floorLabel } from './sim/city/city';
 import { buildCollision, topSurfaceAt, type CollisionWorld } from './sim/city/colliders';
 import { createScene } from './render/sceneSetup';
-import { buildFoundryScene, buildFoundryCollision, ENGINEERING_POS, ASSEMBLY_POS, LAUNCH_ZONE } from './render/foundryView';
+import { buildFoundryScene, buildFoundryCollision, ENGINEERING_POS, ASSEMBLY_POS, LAUNCH_ZONE, FOUNDRY_SPAWN } from './render/foundryView';
 import { InputManager } from './render/input';
 import { CameraRig, PITCH_DEG, orbitOffset } from './render/cameraRig';
 import { PlayerView, playerTarget } from './render/playerView';
@@ -100,6 +100,7 @@ function main(): void {
   let activeScene = foundry.scene;
   let activeCamera = foundry.camera;
   let activeView = foundryView;
+  let launchArmed = true;
 
   const input = new InputManager(canvas);
   const rig = new CameraRig();
@@ -169,6 +170,14 @@ function main(): void {
     activeCamera = foundry.camera;
     activeView = foundryView;
     sceneMode = 'foundry';
+    // Player re-materialises at the foundry deploy spot (and off the launch pad).
+    foundryWorld.player.x = FOUNDRY_SPAWN.x;
+    foundryWorld.player.y = FOUNDRY_SPAWN.y;
+    foundryWorld.player.z = FOUNDRY_SPAWN.z;
+    foundryWorld.player.vy = 0;
+    foundryWorld.player.grounded = true;
+    foundryWorld.player.jumps = 0;
+    launchArmed = false; // standing at the spawn, away from the pad: re-arms on leave
     saveNow();
   }
 
@@ -260,8 +269,14 @@ function main(): void {
       const atAsm = Math.hypot(p.x - ASSEMBLY_POS.x, p.z - (ASSEMBLY_POS.z + 2.5)) < 2.2;
       if (atEng && input.keyEdge('KeyE')) { engineering.toggle(); assembly.close(); }
       if (atAsm && input.keyEdge('KeyE')) { assembly.toggle(); engineering.close(); }
-      // Launch pad walk-in trigger.
-      if (Math.abs(p.x - LAUNCH_ZONE.x) < LAUNCH_ZONE.halfWidth && p.z < LAUNCH_ZONE.z + 1.2) {
+      // Launch pad walk-in trigger, ARMED: must leave the zone before it can
+      // fire again (otherwise returning to the foundry re-deploys instantly
+      // if you deployed by walking onto the pad).
+      const inLaunch = Math.abs(p.x - LAUNCH_ZONE.x) < LAUNCH_ZONE.halfWidth &&
+        Math.abs(p.z - LAUNCH_ZONE.z) < 1.4;
+      if (!inLaunch) launchArmed = true;
+      else if (launchArmed) {
+        launchArmed = false;
         deploy();
       }
     }
