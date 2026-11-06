@@ -8,7 +8,8 @@
 import { Engine, Vector3, Axis } from '@babylonjs/core';
 import { advance, createAccumulator } from './sim/loop';
 import { createWorld, stepWorld } from './sim/world';
-import { CITY, STREET_Y, floorAt, floorLabel } from './sim/city/city';
+import { STREET_Y, floorAt, floorLabel } from './sim/city/city';
+import { buildCollision } from './sim/city/colliders';
 import { createScene } from './render/sceneSetup';
 import { InputManager } from './render/input';
 import { CameraRig, PITCH_DEG, orbitOffset } from './render/cameraRig';
@@ -27,13 +28,8 @@ function main(): void {
 
   const input = new InputManager(canvas);
   const rig = new CameraRig();
-  const world = createWorld();
+  const world = createWorld(buildCollision());
   const acc = createAccumulator();
-
-  // Spawn at the deployment point on the street.
-  world.player.x = CITY.deploy.x;
-  world.player.z = CITY.deploy.z;
-  world.player.y = STREET_Y;
 
   const playerView = new PlayerView(scene);
   const hud = new Hud(hudRoot);
@@ -71,7 +67,10 @@ function main(): void {
     // Debug-fly toggle.
     if (input.keyEdge('KeyG')) {
       fly = !fly;
-      if (!fly) world.player.y = STREET_Y;
+      if (!fly) {
+        world.player.y = STREET_Y;
+        world.player.vy = 0;
+      }
     }
 
     // 2. Fixed-step simulation. Intent sampled once per frame, held per step.
@@ -88,6 +87,10 @@ function main(): void {
       if (fly) {
         const up = (intent.jumpHeld ? 1 : 0) - (input.keyDown('KeyC') ? 1 : 0);
         world.player.y = Math.max(0.6, world.player.y + up * FLY_VERT_SPEED * dt);
+        // Fly mode is noclip: reset jump bookkeeping so landing is clean after.
+        world.player.grounded = false;
+        world.player.jumps = 0;
+        if (!intent.jumpHeld) world.player.vy = 0;
       }
     });
 

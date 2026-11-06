@@ -51,6 +51,7 @@ export class InputManager {
   private mouseDY = 0;
   private wheel = 0;
   private padSnapPrev = false;
+  private jumpPrev = false;
 
   constructor(canvas: HTMLCanvasElement) {
     window.addEventListener('keydown', (e) => {
@@ -111,10 +112,15 @@ export class InputManager {
     const axes: MoveAxes = { strafe, forward };
 
     // Rebase camera-relative axes into world space.
+    const jumpHeld = this.keys.has('Space') || (pad?.buttons[0]?.pressed ?? false);
+    const jumpPressed = jumpHeld && !this.jumpPrev;
+    this.jumpPrev = jumpHeld;
+
     return {
       moveX: rightXZ.x * axes.strafe + forwardXZ.x * axes.forward,
       moveZ: rightXZ.z * axes.strafe + forwardXZ.z * axes.forward,
-      jumpHeld: this.keys.has('Space') || (pad?.buttons[0]?.pressed ?? false),
+      jumpHeld,
+      jumpPressed,
     };
   }
 

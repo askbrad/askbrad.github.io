@@ -11,6 +11,8 @@ export const PITCH_DEG = 57;
 export const MIN_DIST = 8;
 export const MAX_DIST = 45;
 export const SNAP_STEP_DEG = 90;
+/** Snap grid sits on the diagonals (45° + k·90°) so square buildings always read at an angle. */
+export const SNAP_BASE_DEG = 45;
 const SNAP_EASE_RATE = 12; // higher = snappier easing toward the snapped target
 
 export interface OrbitOffset {
@@ -63,7 +65,8 @@ export class CameraRig {
 
     if (this.snap) {
       this.freeYawDeg = wrapDeg(this.freeYawDeg + (cam.yawDelta * 180) / Math.PI);
-      const target = Math.round(this.freeYawDeg / SNAP_STEP_DEG) * SNAP_STEP_DEG;
+      const target =
+        SNAP_BASE_DEG + Math.round((this.freeYawDeg - SNAP_BASE_DEG) / SNAP_STEP_DEG) * SNAP_STEP_DEG;
       // Ease visible yaw toward target (shortest signed path).
       let delta = target - this.yawDeg;
       if (delta > 180) delta -= 360;

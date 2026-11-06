@@ -37,13 +37,20 @@ describe('camera rig', () => {
     expect(rig.yawDeg).toBeCloseTo(45, 3);
   });
 
-  it('snap mode eases yaw toward the nearest 90° step', () => {
+  it('snap mode eases yaw toward the nearest diagonal (45° + k·90°)', () => {
     const rig = new CameraRig();
     rig.snap = true;
-    // Drag to ~55° then let the ease settle.
+    // Default is 45°; drag +55° → free yaw 100° → nearest diagonal snap is 135°.
     frame(rig, 55 * DEG, 1);
     for (let i = 0; i < 120; i++) frame(rig, 0);
-    expect(rig.yawDeg).toBeCloseTo(90, 1);
+    expect(rig.yawDeg).toBeCloseTo(135, 1);
+  });
+
+  it('snap mode holds the default 45° diagonal', () => {
+    const rig = new CameraRig(); // yawDeg 45
+    rig.snap = true;
+    for (let i = 0; i < 60; i++) frame(rig, 0);
+    expect(rig.yawDeg).toBeCloseTo(45, 1);
   });
 
   it('snap toggle flips mode', () => {
