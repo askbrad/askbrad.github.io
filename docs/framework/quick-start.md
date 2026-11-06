@@ -1,0 +1,405 @@
+# Game Studio Agent Architecture -- Quick Start Guide
+
+## What Is This?
+
+This is a complete agent architecture for game development, supporting
+[OpenCode](https://opencode.ai), [Pi](https://github.com/earendil-works/pi-coding-agent),
+[oh-my-pi](https://omp.sh/) (`omp`), [Claude Code](https://code.claude.com/docs/), and
+[Codex](https://developers.openai.com/codex/). It
+organizes 52 specialized AI agents into a studio hierarchy that mirrors
+real game development teams, with defined responsibilities, delegation
+rules, and coordination protocols. It includes engine-specialist agents
+for Godot, Unity, and Unreal — each with dedicated sub-specialists for
+major engine subsystems, plus single-specialist coverage for Bevy, SFML 3,
+and Raylib. All design agents and templates are grounded in
+established game design theory (MDA Framework, Self-Determination Theory,
+Flow State, Bartle Player Types). Use whichever engine set matches your project.
+
+## How to Use
+
+### 1. Understand the Hierarchy
+
+There are three tiers of agents:
+
+- **Tier 1**: Directors who make high-level decisions
+  - `creative-director` -- vision and creative conflict resolution
+  - `technical-director` -- architecture and technology decisions
+  - `producer` -- scheduling, coordination, and risk management
+
+- **Tier 2**: Department leads who own their domain
+  - `game-designer`, `lead-programmer`, `art-director`, `audio-director`,
+    `narrative-director`, `qa-lead`, `release-manager`, `localization-lead`
+
+- **Tier 3**: Specialists who execute within their domain
+  - Designers, programmers, artists, writers, testers, engineers
+
+### 2. Pick the Right Agent for the Job
+
+Ask yourself: "What department would handle this in a real studio?"
+
+| I need to... | Use this agent |
+|-------------|---------------|
+| Design a new mechanic | `game-designer` |
+| Write combat code | `gameplay-programmer` |
+| Create a shader | `technical-artist` |
+| Write dialogue | `writer` |
+| Plan the next sprint | `producer` |
+| Review code quality | `lead-programmer` |
+| Write test cases | `qa-tester` |
+| Design a level | `level-designer` |
+| Fix a performance problem | `performance-analyst` |
+| Set up CI/CD | `devops-engineer` |
+| Design a loot table | `economy-designer` |
+| Resolve a creative conflict | `creative-director` |
+| Make an architecture decision | `technical-director` |
+| Manage a release | `release-manager` |
+| Prepare strings for translation | `localization-lead` |
+| Test a mechanic idea quickly | `prototyper` |
+| Review code for security issues | `security-engineer` |
+| Check accessibility compliance | `accessibility-specialist` |
+| Get Unreal Engine advice | `unreal-specialist` |
+| Get Unity advice | `unity-specialist` |
+| Get Godot advice | `godot-specialist` |
+| Design GAS abilities/effects | `ue-gas-specialist` |
+| Define BP/C++ boundaries | `ue-blueprint-specialist` |
+| Implement UE replication | `ue-replication-specialist` |
+| Build UMG/CommonUI widgets | `ue-umg-specialist` |
+| Design DOTS/ECS architecture | `unity-dots-specialist` |
+| Write Unity shaders/VFX | `unity-shader-specialist` |
+| Manage Addressable assets | `unity-addressables-specialist` |
+| Build UI Toolkit/UGUI screens | `unity-ui-specialist` |
+| Write idiomatic GDScript | `godot-gdscript-specialist` |
+| Create Godot shaders | `godot-shader-specialist` |
+| Build GDExtension modules | `godot-gdextension-specialist` |
+| Plan live events and seasons | `live-ops-designer` |
+| Write patch notes for players | `community-manager` |
+| Brainstorm a new game idea | Use `/concept-brainstorm` skill |
+
+### 3. Use Slash Commands for Common Tasks
+
+| Command | What it does |
+|---------|-------------|
+| `/init-template` | First-time repo setup — customizes the cloned template with your game identity, engine, and team preferences |
+| `/start` | First-time onboarding — asks where you are, guides you to the right workflow |
+| `/help` | Context-aware "what do I do next?" — reads your current phase and artifacts |
+| `/project-stage-detect` | Analyze project state, detect stage, identify gaps |
+| `/setup-engine` | Configure engine + version, populate reference docs |
+| `/adopt` | Brownfield audit and migration plan for existing projects |
+| `/concept-brainstorm` | Guided game concept ideation from scratch |
+| `/map-systems` | Decompose concept into systems, map dependencies, guide per-system GDDs |
+| `/design-system` | Guided, section-by-section GDD authoring for a single game system |
+| `/quick-design` | Lightweight spec for small changes — tuning, tweaks, minor additions |
+| `/review-all-gdds` | Cross-GDD consistency and game design theory review |
+| `/propagate-design-change` | Find ADRs and stories affected by a GDD change |
+| `/ux-design` | Author UX specs (screen/flow, HUD, interaction patterns) |
+| `/ux-review` | Validate UX specs for accessibility and GDD alignment |
+| `/create-architecture` | Master architecture document for the game |
+| `/architecture-decision` | Creates an ADR |
+| `/architecture-review` | Validate all ADRs, dependency ordering, GDD traceability |
+| `/create-control-manifest` | Flat programmer rules sheet from Accepted ADRs |
+| `/create-epics` | Translate GDDs + ADRs into epics (one per architectural module) |
+| `/create-stories` | Break a single epic into implementable story files |
+| `/dev-story` | Read a story and implement it — routes to the correct programmer agent |
+| `/sprint-plan` | Creates or updates sprint plans |
+| `/sprint-status` | Quick 30-line sprint snapshot |
+| `/story-readiness` | Validate a story is implementation-ready before pickup |
+| `/story-done` | End-of-story completion review — verifies acceptance criteria |
+| `/estimate` | Produces structured effort estimates |
+| `/design-review` | Reviews a design document |
+| `/code-review` | Reviews code for quality and architecture |
+| `/balance-check` | Analyzes game balance data |
+| `/asset-audit` | Audits assets for compliance |
+| `/content-audit` | GDD-specified content vs. implemented — find gaps |
+| `/scope-check` | Detect scope creep against plan |
+| `/perf-profile` | Performance profiling and bottleneck ID |
+| `/tech-debt` | Scan, track, and prioritize tech debt |
+| `/gate-check` | Validate phase readiness (PASS/CONCERNS/FAIL) |
+| `/consistency-check` | Scan all GDDs for cross-document inconsistencies (conflicting stats, names, rules) |
+| `/reverse-document` | Generate design/architecture docs from existing code |
+| `/milestone-review` | Reviews milestone progress |
+| `/retrospective` | Runs sprint/milestone retrospective |
+| `/bug-report` | Structured bug report creation |
+| `/playtest-report` | Creates or analyzes playtest feedback |
+| `/onboard` | Generates onboarding docs for a role |
+| `/release-checklist` | Validates pre-release checklist |
+| `/launch-checklist` | Complete launch readiness validation |
+| `/changelog` | Generates changelog from git history |
+| `/patch-notes` | Generate player-facing patch notes |
+| `/hotfix` | Emergency fix with audit trail |
+| `/prototype` | Scaffolds a throwaway prototype |
+| `/localize` | Localization scan, extract, validate |
+| `/team-combat` | Orchestrate full combat team pipeline |
+| `/team-narrative` | Orchestrate full narrative team pipeline |
+| `/team-ui` | Orchestrate full UI team pipeline |
+| `/team-release` | Orchestrate full release team pipeline |
+| `/team-polish` | Orchestrate full polish team pipeline |
+| `/team-audio` | Orchestrate full audio team pipeline |
+| `/team-level` | Orchestrate full level creation pipeline |
+| `/team-live-ops` | Orchestrate live-ops team for seasons, events, and post-launch content |
+| `/team-qa` | Orchestrate full QA team cycle — test plan, test cases, smoke check, sign-off |
+| `/qa-plan` | Generate a QA test plan for a sprint or feature |
+| `/bug-triage` | Re-prioritize open bugs, assign to sprints, surface systemic trends |
+| `/smoke-check` | Run critical path smoke test gate before QA hand-off (PASS/FAIL) |
+| `/automated-smoke-test` | Launch the project via godot-mcp and check for startup errors |
+| `/autopilot-playtest` | Playtest the open Godot game with Autopilot (optional; the server is disabled by default) |
+| `/soak-test` | Generate a soak test protocol for extended play sessions |
+| `/regression-suite` | Map coverage to GDD critical paths, flag gaps, maintain regression suite |
+| `/test-setup` | Scaffold test framework + CI pipeline for the project's engine (run once) |
+| `/test-helpers` | Generate engine-specific test helper libraries and factory functions |
+| `/test-flakiness` | Detect flaky tests from CI history, flag for quarantine or fix |
+| `/test-evidence-review` | Quality review of test files and manual evidence — ADEQUATE/INCOMPLETE/MISSING |
+| `/skill-test` | Validate skill files for compliance and correctness (static / spec / audit) |
+
+### 4. Use Templates for New Documents
+
+Templates are in `docs/framework/templates/`:
+
+- `game-design-document.md` -- for new mechanics and systems
+- `architecture-decision-record.md` -- for technical decisions
+- `architecture-traceability.md` -- maps GDD requirements to ADRs to story IDs
+- `risk-register-entry.md` -- for new risks
+- `narrative-character-sheet.md` -- for new characters
+- `test-plan.md` -- for feature test plans
+- `sprint-plan.md` -- for sprint planning
+- `milestone-definition.md` -- for new milestones
+- `level-design-document.md` -- for new levels
+- `game-pillars.md` -- for core design pillars
+- `art-bible.md` -- for visual style reference
+- `technical-design-document.md` -- for per-system technical designs
+- `post-mortem.md` -- for project/milestone retrospectives
+- `sound-bible.md` -- for audio style reference
+- `release-checklist-template.md` -- for platform release checklists
+- `changelog-template.md` -- for player-facing patch notes
+- `release-notes.md` -- for player-facing release notes
+- `incident-response.md` -- for live incident response playbooks
+- `game-concept.md` -- for initial game concepts (MDA, SDT, Flow, Bartle)
+- `pitch-document.md` -- for pitching the game to stakeholders
+- `economy-model.md` -- for virtual economy design (sink/faucet model)
+- `faction-design.md` -- for faction identity, lore, and gameplay role
+- `systems-index.md` -- for systems decomposition and dependency mapping
+- `project-stage-report.md` -- for project stage detection output
+- `design-doc-from-implementation.md` -- for reverse-documenting existing code into GDDs
+- `architecture-doc-from-code.md` -- for reverse-documenting code into architecture docs
+- `concept-doc-from-prototype.md` -- for reverse-documenting prototypes into concept docs
+- `ux-spec.md` -- for per-screen UX specifications (layout zones, states, events)
+- `hud-design.md` -- for whole-game HUD philosophy, zones, and element specs
+- `accessibility-requirements.md` -- for project-wide accessibility tier and feature matrix
+- `interaction-pattern-library.md` -- for standard UI controls and game-specific patterns
+- `player-journey.md` -- for 6-phase emotional arc and retention hooks by time scale
+- `difficulty-curve.md` -- for difficulty axes, onboarding ramp, and cross-system interactions
+- `test-evidence.md` -- template for recording manual test evidence (screenshots, walkthrough notes)
+- `skill-test-spec.md` -- behavioral spec template for `/skill-test`
+
+Also in `docs/framework/templates/collaborative-protocols/` (used by agents, not typically edited directly):
+
+- `design-agent-protocol.md` -- question-options-draft-approval cycle for design agents
+- `implementation-agent-protocol.md` -- story pickup through /story-done cycle for programming agents
+- `leadership-agent-protocol.md` -- cross-department delegation and escalation for director-tier agents
+
+### 5. Follow the Coordination Rules
+
+1. Work flows down the hierarchy: Directors -> Leads -> Specialists
+2. Conflicts escalate up the hierarchy
+3. Cross-department work is coordinated by the `producer`
+4. Agents do not modify files outside their domain without delegation
+5. All decisions are documented
+
+## First Steps for a New Project
+
+**Don't know where to begin?** Run `/start`. It asks where you are and routes
+you to the right workflow. No assumptions about your game, engine, or experience level.
+
+If you already know what you need, jump directly to the relevant path:
+
+### Path A: "I have no idea what to build"
+
+1. **Run `/start`** (or `/concept-brainstorm open`) — guided creative exploration:
+   what excites you, what you've played, your constraints
+   - Generates 3 concepts, helps you pick one, defines core loop and pillars
+   - Produces a game concept document and recommends an engine
+2. **Initialize your project** — Run `/init-template` to customize the template with your game name, engine, and clean out example files.
+3. **Set up the engine** — Run `/setup-engine` (uses the brainstorm recommendation)
+   - Configures AGENTS.md, detects knowledge gaps, populates reference docs
+   - Creates `docs/framework/technical-preferences.md` with naming conventions,
+     performance budgets, and engine-specific defaults
+   - If the engine version is newer than the LLM's training data, it fetches
+     current docs from the web so agents suggest correct APIs
+4. **Enhance with godot-mcp (Godot only)** — Install the optional MCP server
+   for automated editor control and smoke testing:
+   ```bash
+   npx @coding-solo/godot-mcp
+   ```
+   Once configured, run `/automated-smoke-test` to verify the project launches
+   without errors.
+
+4b. **Enhance with the Unity CLI (Unity only) — recommended** — Unity's
+    official agent integration drives a running Unity 6+ Editor through the
+    project's `com.unity.pipeline` package:
+    ```bash
+    unity status --project-path /path/to/MyProject   # state: ready
+    unity command --project-path /path/to/MyProject  # list Editor commands
+    ```
+    If `unity` is missing, install it: `irm https://unity.com/install.ps1 | iex`
+    (Windows) or `curl -fsSL https://unity.com/install.sh | bash` (macOS/Linux).
+    For OpenCode, `unity setup opencode` also installs Unity's skills.
+    Agents that can run shell commands should use the CLI directly; MCP
+    (`unity mcp`) is only needed for clients without shell access, or when you
+    prefer MCP tools. See `/setup-engine`
+    §7.4 for the MCP fallback and harness-specific config.
+4c. **Optional: Autopilot playtesting (Godot 4.7+, OpenCode, Pi or omp)** — Autopilot plays your game open in the Godot editor and reports what it finds. Its results are automated evidence, never a human playtest. Set it up in the Autopilot section of `/setup-engine` (OpenCode, Pi or omp; other harnesses are not verified), or follow the Setup section of `/autopilot-playtest`. It needs the Autopilot addon, its agent service, and your own keys.
+5. **Validate the concept** — Run `/design-review design/gdd/game-concept.md`
+6. **Decompose into systems** — Run `/map-systems` to map all systems and dependencies
+7. **Design each system** — Run `/design-system [system-name]` (or `/map-systems next`)
+   to write GDDs in dependency order
+8. **Test the core loop** — Run `/prototype [core-mechanic]`
+9. **Playtest it** — Run `/playtest-report` to validate the hypothesis
+10. **Plan the first sprint** — Run `/sprint-plan new`
+11. Start building
+
+### Path B: "I know what I want to build"
+
+If you already have a game concept and engine choice:
+
+1. **Set up the engine** — Run `/setup-engine [engine] [version]`
+   (e.g., `/setup-engine godot 4.7`) — also creates technical preferences
+2. **Write the Game Pillars** — delegate to `creative-director`
+3. **Decompose into systems** — Run `/map-systems` to enumerate systems and dependencies
+4. **Design each system** — Run `/design-system [system-name]` for GDDs in dependency order
+5. **Create the initial ADR** — Run `/architecture-decision`
+6. **Create the first milestone** in `production/milestones/`
+7. **Plan the first sprint** — Run `/sprint-plan new`
+8. Start building
+
+### Path C: "I know the game but not the engine"
+
+If you have a concept but don't know which engine fits:
+
+1. **Run `/setup-engine`** with no arguments — it will ask about your game's
+   needs (2D/3D, platforms, team size, language preferences) and recommend
+   an engine based on your answers
+2. Follow Path B from step 2 onward
+
+### Path D: "I have an existing project"
+
+If you have design docs, prototypes, or code already:
+
+1. **Run `/start`** (or `/project-stage-detect`) — analyzes what exists,
+   identifies gaps, and recommends next steps
+2. **Run `/adopt`** if you have existing GDDs, ADRs, or stories — audits
+   internal format compliance and builds a numbered migration plan to fill gaps
+   without overwriting your existing work
+3. **Configure engine if needed** — Run `/setup-engine` if not yet configured
+4. **Validate phase readiness** — Run `/gate-check` to see where you stand
+5. **Plan the next sprint** — Run `/sprint-plan new`
+
+### Install and Launch
+
+The framework is partitioned into **theme modules**. Only install what you need.
+
+#### OpenCode
+```bash
+opencode
+```
+Type `/` to browse all skills and commands, or `/start` for onboarding.
+
+#### Pi
+```bash
+pi
+```
+All OCGS skills and commands load through Pi extensions. Pi has no subagent tool;
+`ocgs-tool-map` tells agents to do the work directly when a workflow names `Task`
+(see `docs/pi-compatibility.md#delegation`).
+
+#### oh-my-pi (omp)
+```bash
+omp
+```
+omp reads `.agents/` skills, commands, and rules natively and loads the shared
+Pi extensions through `.omp/config.yml`. Run `add core --harness omp` (or
+`/init-template --harness omp`) to generate `.omp/agents/` from `.agents/agents/`.
+See `docs/omp-compatibility.md` for setup and known gaps.
+
+#### Claude Code
+```bash
+claude
+```
+Claude Code reads `AGENTS.md` natively and `.claude/rules/` with `paths`
+frontmatter. Install agents, skills, and commands into `.claude/` with
+`--harness claude`; the installer adds the required `name:` frontmatter to
+agents. MCP servers live in `.mcp.json`.
+
+#### Codex
+```bash
+codex
+```
+Codex reads `.agents/skills` and `AGENTS.md` natively. Install with
+`--harness codex` to generate `.codex/agents/*.toml`. Codex has no project-level
+slash commands, and its `.codex/config.toml` MCP entries load only in trusted
+projects.
+
+#### Install Modules
+
+```bash
+HARNESS=opencode   # opencode | pi | omp | claude | codex
+
+node .opencode/modules/install.mjs add core --harness "$HARNESS"          # Required: directors, /start, /help
+node .opencode/modules/install.mjs add engine-godot --harness "$HARNESS"  # Engine specialists
+node .opencode/modules/install.mjs add art --harness "$HARNESS"           # Aseprite MCP, art bible, asset specs
+node .opencode/modules/install.mjs add design --harness "$HARNESS"        # Game mechanics, systems, combat
+node .opencode/modules/install.mjs add qa --harness "$HARNESS"            # QA pipeline, test setup, profiling
+node .opencode/modules/install.mjs list --harness "$HARNESS"              # See all available + installed
+
+# Shorthands: --pi, --omp, --claude, --codex
+```
+
+Available modules: core, art, design, architecture, stories, programming, ui, audio, narrative, level-design, qa, release, prototyping, live-ops, localization, data, engine-godot, engine-unity, engine-unreal, engine-sfml3, engine-raylib, engine-bevy.
+
+## File Structure Reference
+
+```
+AGENTS.md                          -- Master config (read this first)
+opencode.json                      -- OpenCode V2 config (plugins, MCP, permissions)
+.agents/                           -- Canonical, harness-agnostic content
+  agents/                          -- 52 agent definitions (YAML frontmatter)
+  skills/                          -- 78 skill workflows
+  commands/                        -- 78 slash commands
+  rules/                           -- 11 path-scoped rule files
+  modules/                         -- Module sources for non-OpenCode targets
+.opencode/                         -- OpenCode-specific
+  agents|skills|commands|rules/    -- Symlinks to .agents/ (Windows: run tools/fix-opencode-symlinks.mjs)
+  plugins/                         -- TypeScript plugins (ccgs-hooks, drift, changelog)
+  modules/                         -- Module CLI + OpenCode module sources
+    install.mjs                    -- Module CLI: add/remove/list [--harness <id>]
+    installed.json                 -- OpenCode install manifest
+.pi/                               -- Pi-specific
+  settings.json                    -- Pi settings
+  extensions/                      -- 9 Pi extensions (shared with omp)
+  mcp.json                         -- Project MCP servers (created by module install)
+.omp/                              -- oh-my-pi-specific
+  agents/                          -- Generated agent definitions for the task tool
+  config.yml                       -- Extension wiring
+  mcp.json                         -- Project MCP servers
+.claude/                           -- Claude Code target (created by --harness claude)
+  agents/ skills/ commands/ rules/
+  modules/installed.json           -- Claude install manifest
+.mcp.json                          -- Claude Code project MCP servers
+.codex/                            -- Codex target (created by --harness codex)
+  agents/                          -- TOML agents generated from .agents/agents/
+  config.toml                      -- MCP servers under [mcp_servers.*]
+  modules/installed.json           -- Codex install manifest
+CLAUDE.md                          -- Optional @AGENTS.md fallback for Claude Code < 2.1.277
+docs/                              -- Framework and project documentation
+  architecture/                    -- ADRs (created during architecture phase)
+  engine-reference/                -- Version-pinned engine API snapshots
+  examples/                        -- Worked session examples
+  framework/                       -- Framework reference docs & templates
+    quick-start.md                 -- This file
+    technical-preferences.md       -- Project-specific standards (populated by /setup-engine)
+    coding-standards.md            -- Coding and design doc standards
+    coordination-rules.md          -- Agent coordination rules
+    context-management.md          -- Context budgets and compaction instructions
+    directory-structure.md         -- Project directory layout
+    workflow-catalog.yaml           -- 7-phase pipeline definition (read by /help)
+    setup-requirements.md          -- System prerequisites
+    templates/                     -- 35 document templates + 3 collaborative protocols
+```

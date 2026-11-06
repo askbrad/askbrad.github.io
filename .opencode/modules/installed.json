@@ -1,0 +1,392 @@
+{
+  "architecture": {
+    "version": "0.6.0",
+    "status": "installed",
+    "timestamp": "2026-05-11T17:38:57.004Z",
+    "files": [
+      "agents/lead-programmer.md",
+      "commands/architecture-review.md",
+      "commands/create-control-manifest.md",
+      "rules/design-docs.md",
+      "skills/architecture-review/SKILL.md",
+      "skills/create-control-manifest/SKILL.md",
+      "skills/propagate-design-change/SKILL.md"
+    ]
+  },
+  "art": {
+    "version": "0.6.0",
+    "status": "installed",
+    "timestamp": "2026-05-11T17:38:57.006Z",
+    "files": [
+      "agents/art-director.md",
+      "agents/technical-artist.md",
+      "commands/art-generate.md",
+      "skills/art-bible/SKILL.md",
+      "skills/art-generate/SKILL.md",
+      "skills/asset-audit/SKILL.md",
+      "skills/asset-spec/SKILL.md"
+    ]
+  },
+  "audio": {
+    "version": "0.6.0",
+    "status": "installed",
+    "timestamp": "2026-05-11T17:38:57.007Z",
+    "files": [
+      "agents/audio-director.md",
+      "agents/sound-designer.md",
+      "commands/team-audio.md",
+      "skills/team-audio/SKILL.md"
+    ]
+  },
+  "core": {
+    "version": "0.6.0",
+    "status": "installed",
+    "timestamp": "2026-05-11T17:38:57.011Z",
+    "files": [
+      "agents/creative-director.md",
+      "agents/producer.md",
+      "agents/technical-director.md",
+      "commands/architecture-decision.md",
+      "commands/concept-brainstorm.md",
+      "commands/create-architecture.md",
+      "commands/help.md",
+      "commands/init-template.md",
+      "commands/map-systems.md",
+      "commands/project-stage-detect.md",
+      "commands/setup-engine.md",
+      "commands/start.md",
+      "docs/context-management.md",
+      "docs/coordination-rules.md",
+      "docs/director-gates.md",
+      "docs/workflow-catalog.yaml",
+      "plugins/ccgs-hooks.ts",
+      "plugins/changelog-generator.ts",
+      "plugins/drift-detector.ts",
+      "skills/architecture-decision/SKILL.md",
+      "skills/concept-brainstorm/SKILL.md",
+      "skills/create-architecture/SKILL.md",
+      "skills/gate-check/SKILL.md",
+      "skills/help/SKILL.md",
+      "skills/init-template/SKILL.md",
+      "skills/map-systems/SKILL.md",
+      "skills/project-stage-detect/SKILL.md",
+      "skills/setup-engine/SKILL.md",
+      "skills/start/SKILL.md"
+    ]
+  },
+  "data": {
+    "version": "0.6.0",
+    "status": "installed",
+    "timestamp": "2026-05-11T17:38:57.013Z",
+    "files": [
+      "rules/data-files.md"
+    ]
+  },
+  "design": {
+    "version": "0.6.0",
+    "status": "installed",
+    "timestamp": "2026-05-11T18:06:43.548Z",
+    "files": [
+      "agents/economy-designer.md",
+      "agents/game-designer.md",
+      "agents/systems-designer.md",
+      "commands/design-review.md",
+      "commands/design-system.md",
+      "commands/quick-design.md",
+      "commands/review-all-gdds.md",
+      "commands/team-combat.md",
+      "skills/balance-check/SKILL.md",
+      "skills/consistency-check/SKILL.md",
+      "skills/content-audit/SKILL.md",
+      "skills/design-review/SKILL.md",
+      "skills/design-system/SKILL.md",
+      "skills/estimate/SKILL.md",
+      "skills/playtest-report/SKILL.md",
+      "skills/quick-design/SKILL.md",
+      "skills/review-all-gdds/SKILL.md",
+      "skills/scope-check/SKILL.md",
+      "skills/team-combat/SKILL.md"
+    ],
+    "mcp": []
+  },
+  "engine-godot": {
+    "version": "0.6.0",
+    "status": "installed",
+    "timestamp": "2026-05-11T17:38:57.019Z",
+    "files": [
+      "agents/godot-csharp-specialist.md",
+      "agents/godot-gdextension-specialist.md",
+      "agents/godot-gdscript-specialist.md",
+      "agents/godot-shader-specialist.md",
+      "agents/godot-specialist.md"
+    ]
+  },
+  "engine-unity": {
+    "version": "0.6.0",
+    "status": "installed",
+    "timestamp": "2026-05-11T17:38:57.020Z",
+    "files": [
+      "agents/unity-addressables-specialist.md",
+      "agents/unity-dots-specialist.md",
+      "agents/unity-shader-specialist.md",
+      "agents/unity-specialist.md",
+      "agents/unity-ui-specialist.md"
+    ]
+  },
+  "engine-unreal": {
+    "version": "0.6.0",
+    "status": "installed",
+    "timestamp": "2026-05-11T17:38:57.021Z",
+    "files": [
+      "agents/ue-blueprint-specialist.md",
+      "agents/ue-gas-specialist.md",
+      "agents/ue-replication-specialist.md",
+      "agents/ue-umg-specialist.md",
+      "agents/unreal-specialist.md"
+    ]
+  },
+  "level-design": {
+    "version": "0.6.0",
+    "status": "installed",
+    "timestamp": "2026-05-11T17:38:57.022Z",
+    "files": [
+      "agents/level-designer.md",
+      "commands/team-level.md",
+      "skills/team-level/SKILL.md"
+    ]
+  },
+  "live-ops": {
+    "version": "0.6.0",
+    "status": "installed",
+    "timestamp": "2026-05-11T17:38:57.023Z",
+    "files": [
+      "agents/community-manager.md",
+      "agents/live-ops-designer.md",
+      "skills/team-live-ops/SKILL.md"
+    ]
+  },
+  "localization": {
+    "version": "0.6.0",
+    "status": "installed",
+    "timestamp": "2026-05-11T17:38:57.023Z",
+    "files": [
+      "agents/localization-lead.md",
+      "skills/localize/SKILL.md"
+    ]
+  },
+  "narrative": {
+    "version": "0.6.0",
+    "status": "installed",
+    "timestamp": "2026-05-11T17:38:57.024Z",
+    "files": [
+      "agents/narrative-director.md",
+      "agents/world-builder.md",
+      "agents/writer.md",
+      "commands/team-narrative.md",
+      "rules/narrative.md",
+      "skills/team-narrative/SKILL.md"
+    ]
+  },
+  "programming": {
+    "version": "0.6.0",
+    "status": "installed",
+    "timestamp": "2026-05-11T17:38:57.026Z",
+    "files": [
+      "agents/ai-programmer.md",
+      "agents/engine-programmer.md",
+      "agents/gameplay-programmer.md",
+      "agents/network-programmer.md",
+      "agents/tools-programmer.md",
+      "rules/ai-code.md",
+      "rules/engine-code.md",
+      "rules/gameplay-code.md",
+      "rules/network-code.md",
+      "rules/shader-code.md"
+    ]
+  },
+  "prototyping": {
+    "version": "0.6.0",
+    "status": "installed",
+    "timestamp": "2026-05-11T17:38:57.027Z",
+    "files": [
+      "agents/prototyper.md",
+      "commands/explore.md",
+      "commands/prototype.md",
+      "rules/prototype-code.md",
+      "skills/explore/SKILL.md",
+      "skills/hybrid-prototype/SKILL.md",
+      "skills/prototype/SKILL.md"
+    ]
+  },
+  "qa": {
+    "version": "0.6.0",
+    "status": "installed",
+    "timestamp": "2026-05-11T17:38:57.033Z",
+    "files": [
+      "agents/performance-analyst.md",
+      "agents/qa-lead.md",
+      "agents/qa-tester.md",
+      "agents/security-engineer.md",
+      "commands/autopilot-playtest.md",
+      "commands/bug-report.md",
+      "commands/bug-triage.md",
+      "commands/qa-plan.md",
+      "commands/regression-suite.md",
+      "commands/security-audit.md",
+      "commands/smoke-check.md",
+      "commands/soak-test.md",
+      "commands/team-polish.md",
+      "commands/team-qa.md",
+      "commands/test-evidence-review.md",
+      "commands/test-flakiness.md",
+      "commands/test-helpers.md",
+      "commands/test-setup.md",
+      "rules/test-standards.md",
+      "skills/automated-smoke-test/SKILL.md",
+      "skills/autopilot-playtest/SKILL.md",
+      "skills/bug-report/SKILL.md",
+      "skills/bug-triage/SKILL.md",
+      "skills/perf-profile/SKILL.md",
+      "skills/qa-plan/SKILL.md",
+      "skills/regression-suite/SKILL.md",
+      "skills/security-audit/SKILL.md",
+      "skills/skill-improve/SKILL.md",
+      "skills/skill-test/SKILL.md",
+      "skills/smoke-check/SKILL.md",
+      "skills/soak-test/SKILL.md",
+      "skills/team-polish/SKILL.md",
+      "skills/team-qa/SKILL.md",
+      "skills/test-evidence-review/SKILL.md",
+      "skills/test-flakiness/SKILL.md",
+      "skills/test-helpers/SKILL.md",
+      "skills/test-setup/SKILL.md"
+    ]
+  },
+  "release": {
+    "version": "0.6.0",
+    "status": "installed",
+    "timestamp": "2026-05-11T17:38:57.038Z",
+    "files": [
+      "agents/analytics-engineer.md",
+      "agents/devops-engineer.md",
+      "agents/release-manager.md",
+      "commands/day-one-patch.md",
+      "commands/hotfix.md",
+      "commands/launch-checklist.md",
+      "commands/milestone-review.md",
+      "commands/release-checklist.md",
+      "commands/retrospective.md",
+      "commands/sprint-plan.md",
+      "commands/sprint-status.md",
+      "commands/team-release.md",
+      "skills/changelog/SKILL.md",
+      "skills/day-one-patch/SKILL.md",
+      "skills/hotfix/SKILL.md",
+      "skills/launch-checklist/SKILL.md",
+      "skills/milestone-review/SKILL.md",
+      "skills/patch-notes/SKILL.md",
+      "skills/release-checklist/SKILL.md",
+      "skills/retrospective/SKILL.md",
+      "skills/sprint-plan/SKILL.md",
+      "skills/sprint-status/SKILL.md",
+      "skills/team-release/SKILL.md"
+    ]
+  },
+  "stories": {
+    "version": "0.6.0",
+    "status": "installed",
+    "timestamp": "2026-05-11T17:38:57.041Z",
+    "files": [
+      "commands/code-review.md",
+      "commands/create-epics.md",
+      "commands/create-stories.md",
+      "commands/dev-story.md",
+      "commands/reverse-document.md",
+      "commands/story-done.md",
+      "commands/story-readiness.md",
+      "skills/adopt/SKILL.md",
+      "skills/code-review/SKILL.md",
+      "skills/create-epics/SKILL.md",
+      "skills/create-stories/SKILL.md",
+      "skills/dev-story/SKILL.md",
+      "skills/onboard/SKILL.md",
+      "skills/reverse-document/SKILL.md",
+      "skills/story-done/SKILL.md",
+      "skills/story-readiness/SKILL.md",
+      "skills/tech-debt/SKILL.md"
+    ]
+  },
+  "ui": {
+    "version": "0.6.0",
+    "status": "installed",
+    "timestamp": "2026-05-11T17:38:57.043Z",
+    "files": [
+      "agents/accessibility-specialist.md",
+      "agents/ui-programmer.md",
+      "agents/ux-designer.md",
+      "commands/team-ui.md",
+      "rules/ui-code.md",
+      "skills/team-ui/SKILL.md",
+      "skills/ux-design/SKILL.md",
+      "skills/ux-review/SKILL.md"
+    ]
+  },
+  "engine-sfml3": {
+    "version": "0.6.0",
+    "status": "installed",
+    "timestamp": "2026-05-18T20:17:04.870Z",
+    "files": [
+      "agents/sfml-specialist.md"
+    ],
+    "mcp": []
+  },
+  "engine-raylib": {
+    "version": "0.6.0",
+    "status": "installed",
+    "timestamp": "2026-05-18T20:17:04.874Z",
+    "files": [
+      "agents/raylib-specialist.md"
+    ],
+    "mcp": []
+  },
+  "engine-bevy": {
+    "version": "0.6.0",
+    "status": "installed",
+    "timestamp": "2026-08-09T19:15:22.436Z",
+    "files": [
+      "agents/bevy-specialist.md"
+    ],
+    "mcp": []
+  },
+  "engine-babylonjs": {
+    "version": "0.7.0",
+    "status": "installed",
+    "timestamp": "2026-11-06T04:51:57.455Z",
+    "files": [
+      {
+        "source": "agents/babylonjs-gui-specialist.md",
+        "target": ".opencode/agents/babylonjs-gui-specialist.md"
+      },
+      {
+        "source": "agents/babylonjs-network-specialist.md",
+        "target": ".opencode/agents/babylonjs-network-specialist.md"
+      },
+      {
+        "source": "agents/babylonjs-perf-specialist.md",
+        "target": ".opencode/agents/babylonjs-perf-specialist.md"
+      },
+      {
+        "source": "agents/babylonjs-physics-specialist.md",
+        "target": ".opencode/agents/babylonjs-physics-specialist.md"
+      },
+      {
+        "source": "agents/babylonjs-specialist.md",
+        "target": ".opencode/agents/babylonjs-specialist.md"
+      }
+    ],
+    "mcpByHarness": {
+      "opencode": []
+    },
+    "mcp": []
+  }
+}

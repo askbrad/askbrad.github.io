@@ -1,0 +1,190 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugins": [
+    "./.opencode/plugins/ccgs-hooks.ts",
+    "./.opencode/plugins/drift-detector.ts",
+    "./.opencode/plugins/changelog-generator.ts"
+  ],
+  "commands": {
+    "hybrid-prototype": {
+      "template": "Run the hybrid-prototype skill: load .agents/skills/hybrid-prototype/SKILL.md and follow the fast-lane prototype workflow. Concept: $ARGUMENTS",
+      "description": "Fast-lane prototype for discovery phase — build a playable prototype in 2-3 days with minimal process overhead.",
+      "agent": "prototyper"
+    }
+  },
+  "mcp": {
+    "servers": {
+      "autopilot": {
+        "type": "local",
+        "command": [
+          "autopilot",
+          "mcp"
+        ],
+        "disabled": true,
+        "codemode": false
+      },
+      "aseprite": {
+        "type": "local",
+        "command": [
+          "uv",
+          "--directory",
+          "tools/aseprite-mcp",
+          "run",
+          "-m",
+          "aseprite_mcp"
+        ],
+        "codemode": false,
+        "environment": {
+          "ASEPRITE_PATH": "{env:ASEPRITE_PATH}"
+        }
+      },
+      "godot": {
+        "type": "local",
+        "command": [
+          "npx",
+          "@coding-solo/godot-mcp"
+        ],
+        "disabled": true,
+        "codemode": false,
+        "environment": {
+          "GODOT_PATH": "{env:GODOT_PATH}",
+          "DEBUG": "{env:DEBUG}"
+        }
+      },
+      "unity": {
+        "type": "local",
+        "command": [
+          "unity",
+          "mcp"
+        ],
+        "disabled": true,
+        "codemode": false
+      },
+      "babylonjs-nme": {
+        "type": "local",
+        "command": [
+          "npx",
+          "@babylonjs/mcp-servers",
+          "nme"
+        ],
+        "enabled": false
+      },
+      "babylonjs-gui": {
+        "type": "local",
+        "command": [
+          "npx",
+          "@babylonjs/mcp-servers",
+          "gui"
+        ],
+        "enabled": false
+      }
+    }
+  },
+  "permissions": [
+    {
+      "action": "shell",
+      "resource": "git status *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "git diff *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "git log *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "git branch *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "git rev-parse *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "ls *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "dir *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "python -m json.tool *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "python -m pytest *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "py -m pytest *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "rm -rf *",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "git push --force *",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "git push -f *",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "git reset --hard *",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "git clean -f *",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "sudo *",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "chmod 777 *",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "*>.env*",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "cat *.env*",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "type *.env*",
+      "effect": "deny"
+    },
+    {
+      "action": "read",
+      "resource": "*.env*",
+      "effect": "deny"
+    }
+  ]
+}

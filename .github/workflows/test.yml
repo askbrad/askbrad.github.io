@@ -1,0 +1,21 @@
+name: test
+
+on:
+  push:
+    branches: [master, development]
+  pull_request:
+    branches: [master, development]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 20
+      - run: npm install
+      - run: npm test
