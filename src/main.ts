@@ -1,28 +1,39 @@
 /**
- * Bootstrap: engine → scene → input → sim loop → render sync.
- * The fixed-timestep sim is authoritative; rendering just projects it.
+ * Bootstrap: engine → city scene → input → sim loop → render sync.
+ * The fixed-timestep sim is authoritative; rendering (including the cutaway
+ * fades) just projects sim state. Debug-fly (G) is a render-side affordance
+ * for milestone fly-throughs and is removed before playtest builds (M7).
  */
 
 import { Engine, Vector3, Axis } from '@babylonjs/core';
 import { advance, createAccumulator } from './sim/loop';
 import { createWorld, stepWorld } from './sim/world';
+import { CITY, STREET_Y, floorAt, floorLabel } from './sim/city/city';
 import { createScene } from './render/sceneSetup';
 import { InputManager } from './render/input';
 import { CameraRig, PITCH_DEG, orbitOffset } from './render/cameraRig';
 import { PlayerView, playerTarget } from './render/playerView';
 import { Hud } from './render/hud';
 
+const FLY_SPEED_MULT = 3;
+const FLY_VERT_SPEED = 14;
+
 function main(): void {
   const canvas = document.getElementById('game') as HTMLCanvasElement;
   const hudRoot = document.getElementById('hud') as HTMLDivElement;
 
   const engine = new Engine(canvas, true, { stencil: false }, false);
-  const { scene, camera } = createScene(engine, canvas);
+  const { scene, camera, city } = createScene(engine);
 
   const input = new InputManager(canvas);
   const rig = new CameraRig();
   const world = createWorld();
   const acc = createAccumulator();
+
+  // Spawn at the deployment point on the street.
+  world.player.x = CITY.deploy.x;
+  world.player.z = CITY.deploy.z;
+  world.player.y = STREET_Y;
 
   const playerView = new PlayerView(scene);
   const hud = new Hud(hudRoot);
@@ -35,6 +46,7 @@ function main(): void {
   const fwd = new Vector3();
   const right = new Vector3();
 
+  let fly = false;
   let last = performance.now();
 
   engine.runRenderLoop(() => {
@@ -56,13 +68,28 @@ function main(): void {
     const frLen = Math.hypot(fwd.x, fwd.z) || 1;
     const rtLen = Math.hypot(right.x, right.z) || 1;
 
-    // 2. Fixed-step simulation. Intent is sampled once per frame and held for
-    // every fixed step this frame — input is polled at display rate.
+    // Debug-fly toggle.
+    if (input.keyEdge('KeyG')) {
+      fly = !fly;
+      if (!fly) world.player.y = STREET_Y;
+    }
+
+    // 2. Fixed-step simulation. Intent sampled once per frame, held per step.
     const intent = input.getIntent(
       { x: fwd.x / frLen, z: fwd.z / frLen },
       { x: right.x / rtLen, z: right.z / rtLen },
     );
-    advance(acc, frameDt, (dt) => stepWorld(world, intent, dt));
+    if (fly) {
+      intent.moveX *= FLY_SPEED_MULT;
+      intent.moveZ *= FLY_SPEED_MULT;
+    }
+    advance(acc, frameDt, (dt) => {
+      stepWorld(world, intent, dt);
+      if (fly) {
+        const up = (intent.jumpHeld ? 1 : 0) - (input.keyDown('KeyC') ? 1 : 0);
+        world.player.y = Math.max(0.6, world.player.y + up * FLY_VERT_SPEED * dt);
+      }
+    });
 
     // 3. Render sync.
     playerTarget(world.player, target);
@@ -70,6 +97,8 @@ function main(): void {
     camera.position.set(target.x + offset.x, target.y + offset.y, target.z + offset.z);
     camera.setTarget(target);
 
+    city.update(world.player.x, world.player.y, world.player.z, clampedDt);
+    hud.setFloor(floorLabel(floorAt(world.player.x, world.player.y, world.player.z)));
     hud.setCameraMode(rig);
     scene.render();
   });

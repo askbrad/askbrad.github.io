@@ -44,7 +44,8 @@ function wrapDeg(deg: number): number {
 }
 
 export class CameraRig {
-  yawDeg = 0;
+  /** 45° default so building blocks read at an angle, not face-on. */
+  yawDeg = 45;
   dist = 22;
 
   /** Snapped mode: yaw eases toward the nearest multiple of SNAP_STEP_DEG. */
@@ -74,5 +75,5 @@ export class CameraRig {
     }
   }
 
-  private freeYawDeg = 0;
+  private freeYawDeg = 45;
 }

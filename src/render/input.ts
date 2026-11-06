@@ -118,9 +118,12 @@ export class InputManager {
     };
   }
 
-  /** Sample camera controls (RMB-drag, wheel, right stick, snap toggles). */
+  /**
+   * Sample camera controls (RMB-drag, wheel, right stick, snap toggles).
+   * `dt` is the clamped frame delta.
+   */
   getCameraInput(dt: number): CameraInput {
-    let snapToggled = this.consumeKeyEdge('KeyT');
+    let snapToggled = this.keyEdge('KeyT');
     let yawDelta = this.mouseDX * MOUSE_ORBIT_SENS;
     let zoomDelta = -this.wheel * 0.0015;
 
@@ -146,12 +149,17 @@ export class InputManager {
   private edgeKeys = new Set<string>();
 
   /** True only on the frame a key transitions to pressed. */
-  private consumeKeyEdge(code: string): boolean {
+  keyEdge(code: string): boolean {
     const down = this.keys.has(code);
     const wasDown = this.edgeKeys.has(code);
     if (down) this.edgeKeys.add(code);
     else this.edgeKeys.delete(code);
     return down && !wasDown;
+  }
+
+  /** True while the key is held. */
+  keyDown(code: string): boolean {
+    return this.keys.has(code);
   }
 
   private firstGamepad(): Gamepad | null {

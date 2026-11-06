@@ -1,0 +1,51 @@
+{
+  "meta": {
+    "name": "Foundry Ward (fixed test level)",
+    "extent": 96,
+    "streetY": 14,
+    "storeyHeight": 5
+  },
+  "buildings": [
+    {
+      "id": "exchange",
+      "name": "Exchange Works",
+      "x0": -84, "z0": -70, "x1": -36, "z1": -38,
+      "floors": 4,
+      "entrance": { "side": "south", "offset": 0, "width": 6 },
+      "roofProps": ["hvac", "hvac"]
+    },
+    {
+      "id": "crown",
+      "name": "Crown Halls",
+      "x0": 36, "z0": 6, "x1": 80, "z1": 52,
+      "floors": 5,
+      "entrance": { "side": "west", "offset": 0, "width": 6 },
+      "roofProps": ["antenna", "hvac"]
+    }
+  ],
+  "solidBlocks": [
+    { "id": "s1", "x0": -20, "z0": -60, "x1": 8, "z1": -40, "h": 18 },
+    { "id": "s2", "x0": 40, "z0": -56, "x1": 72, "z1": -32, "h": 24 },
+    { "id": "s3", "x0": -70, "z0": 60, "x1": -46, "z1": 80, "h": 15 },
+    { "id": "s4", "x0": -8, "z0": 56, "x1": 16, "z1": 76, "h": 21 }
+  ],
+  "parks": [
+    { "id": "meridian", "x0": -10, "z0": 20, "x1": 14, "z1": 44 },
+    { "id": "oakhurst", "x0": -84, "z0": 30, "x1": -56, "z1": 58 }
+  ],
+  "sewer": {
+    "floorY": 0.6,
+    "ceilY": 5.4,
+    "corridors": [
+      { "x0": -40, "z0": -14, "x1": 40, "z1": -6 },
+      { "x0": -4, "z0": -50, "x1": 4, "z1": 30 }
+    ],
+    "shafts": [
+      { "x": -28, "z": -10 },
+      { "x": 20, "z": -10 },
+      { "x": 0, "z": -30 }
+    ]
+  },
+  "deploy": { "x": 0, "z": 86 },
+  "extract": { "x": 0, "z": 86 }
+}

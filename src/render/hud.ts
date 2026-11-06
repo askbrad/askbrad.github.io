@@ -10,6 +10,7 @@ export class Hud {
   private readonly energyFill: HTMLElement;
   private readonly modeChip: HTMLElement;
   private readonly camChip: HTMLElement;
+  private readonly floorChip: HTMLElement;
 
   constructor(private readonly root: HTMLElement) {
     root.innerHTML = `
@@ -17,18 +18,20 @@ export class Hud {
         <div class="hud-label">REACTOR</div>
         <div class="energy-bar"><div class="energy-fill"></div></div>
         <div class="hud-chip" id="hud-mode">MODE · STANDARD</div>
+        <div class="hud-chip" id="hud-floor">STREET</div>
       </div>
       <div class="hud-corner hud-tr">
         <div class="hud-chip" id="hud-cam">CAM · FREE</div>
-        <div class="hud-stamp">THE ENGINEER — M0</div>
+        <div class="hud-stamp">THE ENGINEER — M1</div>
       </div>
       <div class="hud-corner hud-bl">
-        <div class="hud-hint">WASD / Left stick — move &nbsp;·&nbsp; RMB-drag / Right stick — orbit &nbsp;·&nbsp; Wheel — zoom &nbsp;·&nbsp; T / Y — snap toggle</div>
+        <div class="hud-hint">WASD / Left stick — move · RMB-drag / Right stick — orbit · Wheel — zoom · T / Y — snap · G — debug fly (Space/C up·down)</div>
       </div>
     `;
     this.energyFill = this.must('.energy-fill');
     this.modeChip = this.must('#hud-mode');
     this.camChip = this.must('#hud-cam');
+    this.floorChip = this.must('#hud-floor');
   }
 
   private must(selector: string): HTMLElement {
@@ -44,6 +47,10 @@ export class Hud {
 
   setCameraMode(rig: CameraRig): void {
     this.camChip.textContent = rig.snap ? 'CAM · SNAP 90°' : 'CAM · FREE';
+  }
+
+  setFloor(label: string): void {
+    if (this.floorChip.textContent !== label) this.floorChip.textContent = label;
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars

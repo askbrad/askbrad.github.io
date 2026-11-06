@@ -32,6 +32,7 @@ describe('camera rig', () => {
 
   it('free orbit accumulates yaw deltas', () => {
     const rig = new CameraRig();
+    rig.yawDeg = 0; // default is 45°; test starts from zero
     frame(rig, 45 * DEG);
     expect(rig.yawDeg).toBeCloseTo(45, 3);
   });
