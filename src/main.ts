@@ -18,9 +18,12 @@ import { CombatView } from './render/combatView';
 import { Hud } from './render/hud';
 import { EngineeringUI } from './render/ui/engineering';
 import { PauseMenu } from './render/ui/pauseMenu';
+import { AssemblyUI } from './render/ui/assembly';
+import { ArmourRig } from './render/armourView';
 import { createLoadout, maxEnergy, modesOwned } from './sim/build';
 import { objectiveLines } from './sim/mission';
 import { createPersistence, type SaveDataV1 } from './save/persistence';
+import { applyCosmeticsData, createCosmetics, serializeCosmetics, type Cosmetics, type PartId } from './sim/cosmetics';
 
 const FLY_SPEED_MULT = 3;
 const AIM_PLANE_OFFSET = 1.0; // aim plane rides at chest height when grounded
@@ -47,6 +50,8 @@ function main(): void {
   }
   const lifetimeScrap = saved?.scrap ?? 0;
   const lifetimeDeaths = saved?.deaths ?? 0;
+  const cosmetics: Cosmetics = createCosmetics();
+  if (saved?.cosmetics) applyCosmeticsData(cosmetics, saved.cosmetics);
   const missionCollision: CollisionWorld = buildCollision();
   const foundryCollision = buildFoundryCollision();
 
@@ -55,6 +60,10 @@ function main(): void {
   foundryWorld.stats.scrap = lifetimeScrap;
   foundryWorld.stats.deaths = lifetimeDeaths;
   const foundryView = new PlayerView(foundry.scene);
+  // Assembly mannequin: rotating live preview of the suit.
+  const manne = new ArmourRig(foundry.scene, 'mannequin');
+  manne.root.position.set(13, 0, -6.5);
+  manne.root.rotation.y = -0.9;
 
   const mission = createScene(engine); // city (builds once, reused)
   let missionWorld = createWorld(missionCollision, loadout);
@@ -62,6 +71,14 @@ function main(): void {
   missionWorld.stats.deaths = lifetimeDeaths;
   const missionView = new PlayerView(mission.scene);
   const combatView = new CombatView(mission.scene);
+
+  // Cosmetics + build → all rigs.
+  for (const view of [foundryView, missionView]) {
+    view.applyCosmetics(cosmetics);
+    view.applyBuild(loadout);
+  }
+  manne.applyCosmetics(cosmetics);
+  manne.applyBuild(loadout);
 
   function saveNow(): void {
     const data: SaveDataV1 = {
@@ -72,6 +89,7 @@ function main(): void {
       mode: loadout.mode,
       toggles: loadout.toggles,
       modules: loadout.modules.map((m) => ({ branch: m.branch, tier: m.tier, sockets: [...m.sockets] })),
+      cosmetics: serializeCosmetics(cosmetics),
     };
     persistence.save(data);
   }
@@ -88,6 +106,17 @@ function main(): void {
   const acc = createAccumulator();
 
   const hud = new Hud(hudRoot);
+  const assembly = new AssemblyUI(hudRoot, () => cosmetics, {
+    onChanged: (part: PartId) => {
+      // Live preview: apply to all rigs immediately, then persist.
+      foundryView.applyCosmetics(cosmetics);
+      missionView.applyCosmetics(cosmetics);
+      manne.applyCosmetics(cosmetics);
+      void part;
+      saveNow();
+    },
+    onClose: () => {},
+  });
   const pauseMenu = new PauseMenu(hudRoot, {
     onResume: () => {},
     onAbandon: () => {
@@ -98,9 +127,12 @@ function main(): void {
   });
   const engineering = new EngineeringUI(hudRoot, () => loadout, {
     onChanged: () => {
-      // Build changed → both reactors re-clamp to the new max energy; save.
+      // Build changed → reactors re-clamp, tier attachments rebuild, save.
       recompute(foundryWorld);
       recompute(missionWorld);
+      foundryView.applyBuild(loadout);
+      missionView.applyBuild(loadout);
+      manne.applyBuild(loadout);
       saveNow();
     },
     onDeploy: () => deploy(),
@@ -126,6 +158,8 @@ function main(): void {
     activeView = missionView;
     sceneMode = 'mission';
     lastDeaths = missionWorld.stats.deaths;
+    missionView.applyCosmetics(cosmetics);
+    missionView.applyBuild(loadout);
   }
 
   function returnToFoundry(): void {
@@ -220,12 +254,12 @@ function main(): void {
     if (input.keyEdge('Escape')) pauseMenu.toggle();
     const paused = pauseMenu.isOpen() || engineering.isOpen();
 
-    // Foundry interactions (paused while the panel is open).
+    // Foundry interactions (paused while a panel is open).
     if (sceneMode === 'foundry' && !paused) {
       const atEng = Math.hypot(p.x - ENGINEERING_POS.x, p.z - (ENGINEERING_POS.z + 2.5)) < 2.2;
       const atAsm = Math.hypot(p.x - ASSEMBLY_POS.x, p.z - (ASSEMBLY_POS.z + 2.5)) < 2.2;
-      if (atEng && input.keyEdge('KeyE')) engineering.toggle();
-      if (atAsm && input.keyEdge('KeyE')) hud.setFloor('ASSEMBLY — arrives in M6');
+      if (atEng && input.keyEdge('KeyE')) { engineering.toggle(); assembly.close(); }
+      if (atAsm && input.keyEdge('KeyE')) { assembly.toggle(); engineering.close(); }
       // Launch pad walk-in trigger.
       if (Math.abs(p.x - LAUNCH_ZONE.x) < LAUNCH_ZONE.halfWidth && p.z < LAUNCH_ZONE.z + 1.2) {
         deploy();
@@ -239,6 +273,7 @@ function main(): void {
       intent.dashPressed = false;
       intent.interactHeld = false;
     }
+    const moving = Math.hypot(intent.moveX, intent.moveZ);
 
     // Extract tram (mission): hold E to bank and return — only once objectives
     // are complete (M5).
@@ -268,6 +303,9 @@ function main(): void {
     // 3. Render sync.
     playerTarget(p, target);
     activeView.sync(p);
+    activeView.animate(clampedDt, moving);
+    foundryView.animate(clampedDt, sceneMode === 'foundry' ? moving : 0);
+    manne.root.rotation.y += clampedDt * 0.6;
     if (sceneMode === 'mission') {
       const groundTop = topSurfaceAt(world.collision!.surfaces, p.x, p.z, p.y + 0.01);
       missionView.updateShadow(p.x, p.y, p.z, groundTop ? groundTop.y : null);

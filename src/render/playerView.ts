@@ -1,33 +1,26 @@
 /**
- * Render-side projection of the sim player: a placeholder capsule with a
- * facing tick, plus a blob shadow projected onto the highest collision
- * surface below — height and landing points read clearly during jumps
- * (plan §10). M4 replaces the capsule with the full armour rig.
+ * Render-side projection of the sim player: the full armour rig (M6) plus a
+ * blob shadow projected onto the highest collision surface below — height and
+ * landing points read clearly during jumps (plan §10). The rig carries part
+ * variants, paint and tier attachments; the sim stays blind to all of it.
  */
 
-import { Mesh, MeshBuilder, Scene, StandardMaterial, Color3, Vector3 } from '@babylonjs/core';
+import { Mesh, MeshBuilder, Scene, StandardMaterial, Color3, Vector3, TransformNode } from '@babylonjs/core';
 import type { PlayerState } from '../sim/types';
+import type { Loadout } from '../sim/build';
+import type { Cosmetics } from '../sim/cosmetics';
+import { ArmourRig } from './armourView';
 
 export class PlayerView {
-  readonly root: Mesh;
+  readonly root: TransformNode;
+  readonly rig: ArmourRig;
   private readonly shadow: Mesh;
   private readonly shadowMat: StandardMaterial;
 
   constructor(scene: Scene) {
-    this.root = MeshBuilder.CreateCapsule('player', { height: 1.9, radius: 0.45 }, scene);
-    const mat = new StandardMaterial('playerMat', scene);
-    mat.diffuseColor = new Color3(0.35, 0.75, 0.95);
-    mat.specularColor = new Color3(0.2, 0.2, 0.2);
-    this.root.material = mat;
-
-    // Facing tick so orbit direction is readable.
-    const tick = MeshBuilder.CreateBox('playerTick', { width: 0.24, height: 0.24, depth: 0.6 }, scene);
-    tick.parent = this.root;
-    tick.position.z = 0.5;
-    const tickMat = new StandardMaterial('playerTickMat', scene);
-    tickMat.diffuseColor = new Color3(0.95, 0.75, 0.2);
-    tickMat.emissiveColor = new Color3(0.4, 0.3, 0.05);
-    tick.material = tickMat;
+    this.root = new TransformNode('playerRoot', scene);
+    this.rig = new ArmourRig(scene, 'player');
+    this.rig.root.parent = this.root;
 
     // Blob shadow.
     this.shadow = MeshBuilder.CreateDisc('playerShadow', { radius: 0.55, tessellation: 24 }, scene);
@@ -41,10 +34,25 @@ export class PlayerView {
     this.shadow.isPickable = false;
   }
 
-  /** Copy sim transform into the render mesh. */
+  /** Copy sim transform into the render rig. */
   sync(player: PlayerState): void {
-    this.root.position.set(player.x, player.y + 0.95, player.z);
+    this.root.position.set(player.x, player.y, player.z);
     this.root.rotation.y = player.yaw;
+  }
+
+  /** Walk-cycle animation (call every rendered frame). */
+  animate(dt: number, moving: number): void {
+    this.rig.update(dt, moving);
+  }
+
+  /** Rebuild tier attachments after a build change. */
+  applyBuild(loadout: Loadout): void {
+    this.rig.applyBuild(loadout);
+  }
+
+  /** Apply part variants + paint. */
+  applyCosmetics(cos: Cosmetics): void {
+    this.rig.applyCosmetics(cos);
   }
 
   /**

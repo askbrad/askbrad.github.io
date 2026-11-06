@@ -12,6 +12,8 @@ export interface SaveDataV1 {
   mode: string;
   toggles: { freePurchases: boolean; infiniteEnergy: boolean };
   modules: Array<{ branch: string; tier: number; sockets: string[] }>;
+  /** M6: optional armour cosmetics (part → variant/paint). */
+  cosmetics?: Record<string, { variant: number; main: string; accent: string }>;
 }
 
 export interface StorageLike {

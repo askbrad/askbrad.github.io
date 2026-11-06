@@ -1,0 +1,8 @@
+{
+  "parts": {
+    "head": { "variants": ["Visor", "Crest"], "defaultVariant": 0, "defaultMain": "#5a6b7c", "defaultAccent": "#37c4f0" },
+    "chest": { "variants": ["Core", "Plate"], "defaultVariant": 0, "defaultMain": "#4d7ea8", "defaultAccent": "#ffc63a" },
+    "arms": { "variants": ["Blaster", "Blade"], "defaultVariant": 0, "defaultMain": "#46617a", "defaultAccent": "#ff8c3a" },
+    "legs": { "variants": ["Thruster", "Wheeled"], "defaultVariant": 0, "defaultMain": "#3d5568", "defaultAccent": "#7fd8f0" }
+  }
+}
