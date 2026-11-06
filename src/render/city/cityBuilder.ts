@@ -46,7 +46,8 @@ interface BuildingRender {
   def: BuildingDef;
   /** Exterior wall meshes keyed by storey (1-based). */
   wallsByStorey: Mesh[][];
-  cap: Mesh;
+  /** Floor slab + rims per storey (1-based); the top entry is the roof cap. */
+  slabsByStorey: Mesh[][];
 }
 
 export interface CityRender {
@@ -76,22 +77,23 @@ export function buildCity(scene: Scene): CityRender {
   };
 
   /** Pale landing rim strips along a slab's 4 edges. */
-  const addRim = (r: Rect, topY: number): void => {
+  const addRim = (r: Rect, topY: number): Mesh[] => {
     const w = r.x1 - r.x0;
     const d = r.z1 - r.z0;
     const cx = (r.x0 + r.x1) / 2;
     const cz = (r.z0 + r.z1) / 2;
-    box('rim', w, RIM_H, RIM_T, cx, topY + RIM_H / 2, r.z0 + RIM_T / 2, rimMat);
-    box('rim', w, RIM_H, RIM_T, cx, topY + RIM_H / 2, r.z1 - RIM_T / 2, rimMat);
-    box('rim', RIM_T, RIM_H, d, r.x0 + RIM_T / 2, topY + RIM_H / 2, cz, rimMat);
-    box('rim', RIM_T, RIM_H, d, r.x1 - RIM_T / 2, topY + RIM_H / 2, cz, rimMat);
+    return [
+      box('rim', w, RIM_H, RIM_T, cx, topY + RIM_H / 2, r.z0 + RIM_T / 2, rimMat),
+      box('rim', w, RIM_H, RIM_T, cx, topY + RIM_H / 2, r.z1 - RIM_T / 2, rimMat),
+      box('rim', RIM_T, RIM_H, d, r.x0 + RIM_T / 2, topY + RIM_H / 2, cz, rimMat),
+      box('rim', RIM_T, RIM_H, d, r.x1 - RIM_T / 2, topY + RIM_H / 2, cz, rimMat),
+    ];
   };
 
-  /** Walkable slab + rim; top surface at topY. Returns the slab mesh. */
-  const addSlab = (r: Rect, topY: number, m: StandardMaterial): Mesh => {
+  /** Walkable slab + rim; top surface at topY. Returns [slab, ...rims]. */
+  const addSlab = (r: Rect, topY: number, m: StandardMaterial): Mesh[] => {
     const slab = box('slab', r.x1 - r.x0, SLAB_T, r.z1 - r.z0, (r.x0 + r.x1) / 2, topY - SLAB_T / 2, (r.z0 + r.z1) / 2, m);
-    addRim(r, topY);
-    return slab;
+    return [slab, ...addRim(r, topY)];
   };
 
   // ── Street + parks ────────────────────────────────────────────────────
@@ -132,12 +134,14 @@ export function buildCity(scene: Scene): CityRender {
   buildSewer(CITY.sewer, { box, addRim, sewerMat });
 
   // ── Cutaway driver ────────────────────────────────────────────────────
+  // Diablo rule: inside a building, structure AT/ABOVE the player's storey
+  // goes ghost — walls from the player's storey up, floor slabs (ceilings)
+  // strictly above it. The player's own floor stays solid underfoot.
   const vis = new Map<Mesh, { cur: number; target: number }>();
   for (const r of renders) {
-    for (const arr of r.wallsByStorey) {
+    for (const arr of [...r.wallsByStorey, ...r.slabsByStorey]) {
       for (const w of arr) vis.set(w, { cur: 1, target: 1 });
     }
-    vis.set(r.cap, { cur: 1, target: 1 });
   }
 
   return {
@@ -149,15 +153,17 @@ export function buildCity(scene: Scene): CityRender {
           : 0;
 
         for (let s = 1; s <= r.def.floors; s++) {
-          const target = inside && s >= storey ? FADED : 1;
+          const wallTarget = inside && s >= storey ? FADED : 1;
           for (const w of r.wallsByStorey[s - 1] ?? []) {
             const v = vis.get(w);
-            if (v) v.target = target;
+            if (v) v.target = wallTarget;
+          }
+          const slabTarget = inside && s > storey ? FADED : 1;
+          for (const m of r.slabsByStorey[s - 1] ?? []) {
+            const v = vis.get(m);
+            if (v) v.target = slabTarget;
           }
         }
-        // Roof cap hides while inside the top storey so the room reads from above.
-        const capV = vis.get(r.cap);
-        if (capV) capV.target = inside && storey === r.def.floors ? FADED : 1;
       }
 
       for (const [mesh, v] of vis) {
@@ -171,7 +177,7 @@ export function buildCity(scene: Scene): CityRender {
 
 interface BuilderTools {
   box(name: string, w: number, h: number, d: number, x: number, y: number, z: number, m: StandardMaterial): Mesh;
-  addSlab(r: Rect, topY: number, m: StandardMaterial): Mesh;
+  addSlab(r: Rect, topY: number, m: StandardMaterial): Mesh[];
   wallMat: StandardMaterial;
   slabMat: StandardMaterial;
 }
@@ -185,14 +191,14 @@ function buildEnterable(scene: Scene, def: BuildingDef, t: BuilderTools): Buildi
   const cz = (z0 + z1) / 2;
 
   const wallsByStorey: Mesh[][] = [];
-  let capMesh: Mesh = scene.getMeshByName('__none') as Mesh ?? MeshBuilder.CreateBox('__none', { size: 0.01 }, scene);
+  const slabsByStorey: Mesh[][] = [];
 
   for (let s = 1; s <= def.floors; s++) {
     const base = STREET_Y + (s - 1) * STOREY_H;
     const walls: Mesh[] = [];
 
     // Walkable slab at this storey's base (top surface = base).
-    const slab = t.addSlab(def, base, t.slabMat);
+    const slabParts = t.addSlab(def, base, t.slabMat);
 
     const wall = (tag: string, ww: number, dd: number, wx: number, wz: number): void => {
       walls.push(t.box(`${def.id}_w${s}_${tag}`, ww, STOREY_H, dd, wx, base + STOREY_H / 2, wz, t.wallMat));
@@ -253,7 +259,7 @@ function buildEnterable(scene: Scene, def: BuildingDef, t: BuilderTools): Buildi
     }
 
     wallsByStorey.push(walls);
-    if (s === def.floors) capMesh = slab; // top storey's slab = the roof cap seen from above
+    slabsByStorey.push(slabParts);
   }
 
   // Roof props (cool, subdued).
@@ -267,7 +273,7 @@ function buildEnterable(scene: Scene, def: BuildingDef, t: BuilderTools): Buildi
     propIndex++;
   }
 
-  return { def, wallsByStorey, cap: capMesh };
+  return { def, wallsByStorey, slabsByStorey };
 }
 
 interface SewerTools {
