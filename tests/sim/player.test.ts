@@ -17,6 +17,11 @@ const intent = (over: Partial<Intent> = {}): Intent => ({
   aimZ: 0,
   fly: false,
   flyUp: 0,
+  dashPressed: false,
+  interactHeld: false,
+  modeNextPressed: false,
+  modePrevPressed: false,
+  blasterHeld: false,
   ...over,
 });
 
@@ -121,16 +126,17 @@ describe('walls', () => {
     expect(wallBlocks(COL.walls, b.x1 + 0.25, world.player.z, STREET_Y, 0.45, 1.9)).toBe(true);
   });
 
-  it('lets the player walk in through the south door gap', () => {
-    const b = CITY.buildings[0]!;
+  it('lets the player walk in through the crown west door gap', () => {
+    const b = CITY.buildings[1]!; // crown halls — entrance west (the exchange
+    // south door is now sealed by the M4 hacking gate, tested in build.test)
     const world = createWorld(COL);
-    const centreX = (b.x0 + b.x1) / 2;
-    world.player.x = centreX;
-    world.player.z = b.z1 + 3; // just outside the south wall
+    const centreZ = (b.z0 + b.z1) / 2;
+    world.player.x = b.x0 - 3; // just outside the west wall
+    world.player.z = centreZ;
     world.player.y = STREET_Y;
     world.player.grounded = true;
-    run(world, 1.5, { moveZ: -1 }); // walk north through the door
-    expect(world.player.z).toBeLessThan(b.z1 - 0.5); // inside
+    run(world, 1.5, { moveX: 1 }); // walk east through the door
+    expect(world.player.x).toBeGreaterThan(b.x0 + 0.5); // inside
     const ref = floorAt(world.player.x, world.player.y + 0.5, world.player.z);
     expect(ref.layer).toBe(LAYER.INTERIOR);
   });

@@ -26,6 +26,15 @@ export interface Intent {
   fly: boolean;
   /** Debug-fly vertical input: -1 descend, 0 hover, +1 ascend. */
   flyUp: number;
+  /** Vector dash triggered this frame (edge). */
+  dashPressed: boolean;
+  /** Interact/hack held (E / pad X). */
+  interactHeld: boolean;
+  /** Attack-mode cycle (edges). */
+  modeNextPressed: boolean;
+  modePrevPressed: boolean;
+  /** Baseline blaster held regardless of mode (MMB / 1 / pad LT). */
+  blasterHeld: boolean;
 }
 
 export const NO_INTENT: Intent = {
@@ -39,6 +48,11 @@ export const NO_INTENT: Intent = {
   aimZ: 0,
   fly: false,
   flyUp: 0,
+  dashPressed: false,
+  interactHeld: false,
+  modeNextPressed: false,
+  modePrevPressed: false,
+  blasterHeld: false,
 };
 
 /** The player avatar. Becomes the full armour rig in M4+. */
@@ -55,6 +69,16 @@ export interface PlayerState {
   grounded: boolean;
   /** Jumps used since last landing (universal double-jump → max 2). */
   jumps: number;
+  /** Vector dash: remaining charges, recharge timer, active dash state. */
+  dashCharges: number;
+  dashRecharge: number;
+  dashTime: number;
+  dashDirX: number;
+  dashDirZ: number;
+  /** Time spent airborne (for Recovery landing reserve). */
+  airTime: number;
+  /** Hover lockout: set when hover breaks on an empty reactor, cleared on landing. */
+  hoverLocked: boolean;
 }
 
 /** Root simulation state. Grows per milestone; keeps a stable shape for saves/tests. */
@@ -66,10 +90,14 @@ export interface WorldState {
   collision?: import('./city/colliders').CollisionWorld;
   /** Combat pass state (M3). */
   combat: import('./combat').CombatState;
-  /** Reactor energy (M3). */
+  /** Reactor energy (M3); max is dynamic from M4. */
   reactor: import('./energy').Reactor;
   /** Run stats: hull, currency, deaths (M3). */
   stats: import('./combat').RunStats;
+  /** Armour build (M4) — purchases, sockets, modes, lab toggles. */
+  loadout: import('./build').Loadout;
+  /** Hacking state (M4): progress on the nearest gate terminal. */
+  hack: { progress: number; target: string | null };
 }
 
 /** Camera-relative input bundle consumed by the input layer (render-side only). */

@@ -39,7 +39,12 @@ const MOUSE_ORBIT_SENS = 0.005;
 /** Gamepad buttons (Xbox layout). */
 const PAD_SNAP_BUTTON = 3; // Y
 const PAD_FIRE_BUTTON = 7; // RT
-const PAD_PUNCH_BUTTON = 2; // X
+const PAD_BLASTER_BUTTON = 6; // LT — baseline blaster regardless of mode
+const PAD_PUNCH_BUTTON = 13; // D-pad down
+const PAD_INTERACT_BUTTON = 2; // X
+const PAD_DASH_BUTTON = 1; // B
+const PAD_MODE_NEXT = 5; // RB
+const PAD_MODE_PREV = 4; // LB
 const PAD_RS_CLICK = 10; // right stick click — hold to orbit with the stick
 
 function applyDeadzone(v: number, dz: number): number {
@@ -57,6 +62,9 @@ export class InputManager {
   private padSnapPrev = false;
   private jumpPrev = false;
   private punchPrev = false;
+  private dashPrev = false;
+  private modeNextPrev = false;
+  private modePrevPrev = false;
   private lmbDown = false;
   private pointerX = 0;
   private pointerY = 0;
@@ -156,6 +164,21 @@ export class InputManager {
     const punchPressed = punchDown && !this.punchPrev;
     this.punchPrev = punchDown;
 
+    // M4 abilities: dash, interact, mode cycling, baseline blaster.
+    const dashDown = this.keys.has('ShiftLeft') || this.keys.has('ShiftRight') || (pad?.buttons[PAD_DASH_BUTTON]?.pressed ?? false);
+    const dashPressed = dashDown && !this.dashPrev;
+    this.dashPrev = dashDown;
+
+    const modeNextDown = this.keys.has('KeyR') || (pad?.buttons[PAD_MODE_NEXT]?.pressed ?? false);
+    const modeNextPressed = modeNextDown && !this.modeNextPrev;
+    this.modeNextPrev = modeNextDown;
+
+    const modePrevDown = this.keys.has('KeyF') || (pad?.buttons[PAD_MODE_PREV]?.pressed ?? false);
+    const modePrevPressed = modePrevDown && !this.modePrevPrev;
+    this.modePrevPrev = modePrevDown;
+
+    const blasterHeld = this.keys.has('Digit1') || (pad?.buttons[PAD_BLASTER_BUTTON]?.pressed ?? false);
+
     return {
       moveX: rightXZ.x * axes.strafe + forwardXZ.x * axes.forward,
       moveZ: rightXZ.z * axes.strafe + forwardXZ.z * axes.forward,
@@ -167,6 +190,11 @@ export class InputManager {
       aimZ,
       fly: false, // main.ts sets this for debug-fly
       flyUp: 0,
+      dashPressed,
+      interactHeld: this.keys.has('KeyE') || (pad?.buttons[PAD_INTERACT_BUTTON]?.pressed ?? false),
+      modeNextPressed,
+      modePrevPressed,
+      blasterHeld,
     };
   }
 

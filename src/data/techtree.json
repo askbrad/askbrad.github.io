@@ -1,0 +1,102 @@
+{
+  "sockets": {
+    "back": ["back-centre", "back-left", "back-right"],
+    "shoulders": ["shoulder-left", "shoulder-right", "spine-upper"],
+    "chest": ["chest-lower", "spine-lower"],
+    "capacity": ["chest-upper", "spine-lower"],
+    "legs": ["calf-left", "calf-right", "thigh-left", "thigh-right"],
+    "arms": ["wrist-left", "wrist-right", "forearm-left", "forearm-right"]
+  },
+  "branches": {
+    "aerial": {
+      "name": "Aerial Systems",
+      "mode": "flight",
+      "count": 1,
+      "mounts": ["back-centre", "back-left", "back-right"],
+      "tiers": [
+        { "tier": 1, "name": "Lift Pack", "cost": 1, "reservation": 8,
+          "effects": { "hoverDrain": 24, "hoverAscent": 7, "moveMult": 1.0 } },
+        { "tier": 2, "name": "Wing Array", "cost": 2, "reservation": 12,
+          "effects": { "hoverDrain": 30, "hoverAscent": 9, "moveMult": 1.15 } },
+        { "tier": 3, "name": "Storm Wings", "cost": 3, "reservation": 16,
+          "effects": { "hoverDrain": 38, "hoverAscent": 11, "moveMult": 1.3 } },
+        { "tier": 4, "name": "Ascendant Frame", "cost": 4, "reservation": 20,
+          "effects": { "hoverDrain": 48, "hoverAscent": 13, "moveMult": 1.5 } }
+      ]
+    },
+    "lightning": {
+      "name": "Chain Lightning",
+      "mode": "weapon",
+      "count": 1,
+      "mounts": ["shoulder-left", "shoulder-right", "spine-upper"],
+      "tiers": [
+        { "tier": 1, "name": "Arc Bolt", "cost": 1, "reservation": 3,
+          "effects": { "damage": 14, "chains": 2, "cost": 8, "range": 18 } },
+        { "tier": 2, "name": "Chain Reactor", "cost": 2, "reservation": 5,
+          "effects": { "damage": 16, "chains": 4, "cost": 16, "range": 22 } },
+        { "tier": 3, "name": "Storm Network", "cost": 3, "reservation": 7,
+          "effects": { "damage": 18, "chains": 6, "cost": 26, "range": 26 } },
+        { "tier": 4, "name": "Thunder Crown", "cost": 4, "reservation": 11,
+          "effects": { "damage": 20, "chains": 10, "cost": 42, "range": 30 } }
+      ]
+    },
+    "recovery": {
+      "name": "Recovery",
+      "mode": "passive",
+      "count": 1,
+      "mounts": ["chest-lower", "spine-lower"],
+      "tiers": [
+        { "tier": 1, "name": "Recuperator", "cost": 1, "reservation": 1,
+          "effects": { "regenBonus": 3, "killRefund": 0, "landingReserve": 0 } },
+        { "tier": 2, "name": "Salvage Dynamo", "cost": 2, "reservation": 3,
+          "effects": { "regenBonus": 6, "killRefund": 3, "landingReserve": 0 } },
+        { "tier": 3, "name": "Motion Dynamo", "cost": 3, "reservation": 5,
+          "effects": { "regenBonus": 9, "killRefund": 4, "landingReserve": 4 } },
+        { "tier": 4, "name": "Perpetual Circuit", "cost": 4, "reservation": 8,
+          "effects": { "regenBonus": 12, "killRefund": 5, "landingReserve": 6 } }
+      ]
+    },
+    "capacity": {
+      "name": "Reactor Capacity",
+      "mode": "passive",
+      "count": 1,
+      "mounts": ["chest-upper", "spine-lower"],
+      "tiers": [
+        { "tier": 1, "name": "Cell Tuning", "cost": 1, "reservation": 1, "effects": { "bonus": 25 } },
+        { "tier": 2, "name": "Dense Cells", "cost": 2, "reservation": 2, "effects": { "bonus": 60 } },
+        { "tier": 3, "name": "Fusion Bank", "cost": 3, "reservation": 4, "effects": { "bonus": 120 } },
+        { "tier": 4, "name": "Star Core", "cost": 4, "reservation": 6, "effects": { "bonus": 220 } }
+      ]
+    },
+    "vector": {
+      "name": "Vector Drive",
+      "mode": "movement",
+      "count": 2,
+      "mounts": ["calf-left", "calf-right", "thigh-left", "thigh-right"],
+      "tiers": [
+        { "tier": 1, "name": "Burst Drive", "cost": 1, "reservation": 2,
+          "effects": { "cost": 12, "charges": 1 } },
+        { "tier": 2, "name": "Overdrive", "cost": 2, "reservation": 3,
+          "effects": { "cost": 16, "charges": 2 } }
+      ]
+    },
+    "hacking": {
+      "name": "Hacking",
+      "mode": "utility",
+      "count": 1,
+      "mounts": ["wrist-left", "wrist-right", "forearm-left", "forearm-right"],
+      "tiers": [
+        { "tier": 1, "name": "Tap Link", "cost": 1, "reservation": 2,
+          "effects": { "hackTime": 1.5, "hackCost": 6, "range": 3.5 } },
+        { "tier": 2, "name": "Override", "cost": 2, "reservation": 4,
+          "effects": { "hackTime": 0.75, "hackCost": 12, "range": 5 } }
+      ]
+    }
+  },
+  "presets": {
+    "THUNDER_ANGEL_1": { "aerial": 1, "lightning": 1, "recovery": 1, "capacity": 1 },
+    "THUNDER_ANGEL_2": { "aerial": 2, "lightning": 2, "recovery": 2, "capacity": 2 },
+    "THUNDER_ANGEL_3": { "aerial": 3, "lightning": 3, "recovery": 3, "capacity": 3 },
+    "THUNDER_ANGEL_4": { "aerial": 4, "lightning": 4, "recovery": 4, "capacity": 4 }
+  }
+}

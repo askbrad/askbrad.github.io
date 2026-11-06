@@ -54,6 +54,8 @@ interface BuildingRender {
 
 export interface CityRender {
   update(px: number, py: number, pz: number, dt: number): void;
+  /** Hide/show a gate force field (M4 hacking). */
+  setGateOpen(id: string, open: boolean): void;
 }
 
 export function buildCity(scene: Scene): CityRender {
@@ -138,6 +140,22 @@ export function buildCity(scene: Scene): CityRender {
   // ── Sewer ─────────────────────────────────────────────────────────────
   buildSewer(CITY.sewer, { box, addRim, sewerMat, sewerShell });
 
+  // ── Upgrade gates: force field + terminal ─────────────────────────────
+  const gateMat = new StandardMaterial('gateField', scene);
+  gateMat.diffuseColor = new Color3(0.9, 0.2, 0.15);
+  gateMat.emissiveColor = new Color3(0.55, 0.08, 0.05);
+  gateMat.alpha = 0.45;
+  const terminalMat = mat(scene, 'terminal', 0.2, 0.24, 0.3);
+  const terminalScreenMat = mat(scene, 'terminalScreen', 0.1, 0.85, 0.35, 1.2);
+  const gateMeshes = new Map<string, Mesh>();
+  for (const g of CITY.gates ?? []) {
+    const w = g.wall;
+    const field = box(`gate_${g.id}`, w.x1 - w.x0, w.y1 - w.y0, w.z1 - w.z0, (w.x0 + w.x1) / 2, (w.y0 + w.y1) / 2, (w.z0 + w.z1) / 2, gateMat);
+    gateMeshes.set(g.id, field);
+    box(`terminal_${g.id}`, 0.9, 2.4, 0.9, g.terminal.x, STREET_Y + 1.2, g.terminal.z, terminalMat);
+    box(`terminal_screen_${g.id}`, 0.7, 0.9, 0.15, g.terminal.x, STREET_Y + 1.7, g.terminal.z + 0.45, terminalScreenMat).rotation.x = -0.35;
+  }
+
   // ── Cutaway driver ────────────────────────────────────────────────────
   // Diablo rule: inside a building, structure AT/ABOVE the player's storey
   // goes ghost — walls from the player's storey up, floor slabs (ceilings)
@@ -193,6 +211,9 @@ export function buildCity(scene: Scene): CityRender {
         if (Math.abs(v.cur - v.target) < 0.005) v.cur = v.target;
         mesh.visibility = v.cur;
       }
+    },
+    setGateOpen(id, open) {
+      gateMeshes.get(id)?.setEnabled(!open);
     },
   };
 }

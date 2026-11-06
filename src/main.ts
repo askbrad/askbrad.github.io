@@ -1,70 +1,111 @@
 /**
- * Bootstrap: engine → city scene → input → sim loop → render sync.
- * The fixed-timestep sim is authoritative (movement + combat); rendering
- * projects it. Debug-fly (G) remains a noclip affordance, removed by M7.
+ * Bootstrap M4: two scenes — Foundry hub and City mission — sharing one sim
+ * model (per-scene WorldState) and one fixed-timestep loop. Deploy switches
+ * world+scene; returning happens at the extract tram (hold E).
  */
 
 import { Engine, Matrix, Vector3, Axis } from '@babylonjs/core';
 import { advance, createAccumulator } from './sim/loop';
 import { createWorld, stepWorld } from './sim/world';
 import { STREET_Y, floorAt, floorLabel } from './sim/city/city';
-import { buildCollision, topSurfaceAt } from './sim/city/colliders';
+import { buildCollision, topSurfaceAt, type CollisionWorld } from './sim/city/colliders';
 import { createScene } from './render/sceneSetup';
+import { buildFoundryScene, buildFoundryCollision, ENGINEERING_POS, ASSEMBLY_POS, LAUNCH_ZONE } from './render/foundryView';
 import { InputManager } from './render/input';
 import { CameraRig, PITCH_DEG, orbitOffset } from './render/cameraRig';
 import { PlayerView, playerTarget } from './render/playerView';
 import { CombatView } from './render/combatView';
 import { Hud } from './render/hud';
-import { reactorMax } from './sim/energy';
+import { EngineeringUI } from './render/ui/engineering';
+import { createLoadout, maxEnergy, modesOwned } from './sim/build';
 
 const FLY_SPEED_MULT = 3;
 const AIM_PLANE_OFFSET = 1.0; // aim plane rides at chest height when grounded
+const EXTRACT_HOLD = 1.0; // seconds of E at the tram to return to foundry
 
 function main(): void {
   const canvas = document.getElementById('game') as HTMLCanvasElement;
   const hudRoot = document.getElementById('hud') as HTMLDivElement;
 
   const engine = new Engine(canvas, true, { stencil: false }, false);
-  const { scene, camera, city } = createScene(engine);
+
+  // ── Shared state ────────────────────────────────────────────────────────
+  const loadout = createLoadout(10); // start with a little test credit
+  const missionCollision: CollisionWorld = buildCollision();
+  const foundryCollision = buildFoundryCollision();
+
+  const foundry = buildFoundryScene(engine);
+  const foundryWorld = createWorld(foundryCollision, loadout);
+  const foundryView = new PlayerView(foundry.scene);
+
+  const mission = createScene(engine); // city (builds once, reused)
+  let missionWorld = createWorld(missionCollision, loadout);
+  const missionView = new PlayerView(mission.scene);
+  const combatView = new CombatView(mission.scene);
+
+  type SceneMode = 'foundry' | 'mission';
+  let sceneMode: SceneMode = 'foundry';
+  let world = foundryWorld;
+  let activeScene = foundry.scene;
+  let activeCamera = foundry.camera;
+  let activeView = foundryView;
 
   const input = new InputManager(canvas);
   const rig = new CameraRig();
-  const world = createWorld(buildCollision());
   const acc = createAccumulator();
 
-  const playerView = new PlayerView(scene);
-  const combatView = new CombatView(scene);
   const hud = new Hud(hudRoot);
+  const engineering = new EngineeringUI(hudRoot, () => loadout, {
+    onChanged: () => {
+      // Build changed → both reactors re-clamp to the new max energy.
+      recompute(foundryWorld);
+      recompute(missionWorld);
+    },
+    onDeploy: () => deploy(),
+    onRefill: () => {
+      foundryWorld.reactor.energy = foundryWorld.reactor.max;
+      missionWorld.reactor.energy = missionWorld.reactor.max;
+    },
+  });
 
-  // Debug spawn points for visual QA: ?tp=sewer | roof | f2 (+&god to freeze hull).
-  const qa = new URLSearchParams(window.location.search);
-  const tp = qa.get('tp');
-  const god = qa.has('god');
-  if (tp === 'sewer') {
-    world.player.x = 0;
-    world.player.z = -30;
-    world.player.y = 0.6;
-  } else if (tp === 'roof') {
-    world.player.x = -60;
-    world.player.z = -54;
-    world.player.y = STREET_Y + 4 * 5; // exchange roof
-  } else if (tp === 'f2') {
-    world.player.x = 58;
-    world.player.z = 29;
-    world.player.y = STREET_Y + 5; // crown halls storey 2
+  function recompute(w: { reactor: { max: number; energy: number } }): void {
+    const m = maxEnergy(loadout);
+    w.reactor.max = m;
+    if (w.reactor.energy > m) w.reactor.energy = m;
+  }
+
+  function deploy(): void {
+    // Fresh mission world each deployment; enemies reset, build/credits persist.
+    missionWorld = createWorld(missionCollision, loadout);
+    missionWorld.stats.credits = loadout.credits;
+    world = missionWorld;
+    activeScene = mission.scene;
+    activeCamera = mission.camera;
+    activeView = missionView;
+    sceneMode = 'mission';
+    lastDeaths = missionWorld.stats.deaths;
+  }
+
+  function returnToFoundry(): void {
+    loadout.credits = missionWorld.stats.credits; // bank collected credits
+    world = foundryWorld;
+    activeScene = foundry.scene;
+    activeCamera = foundry.camera;
+    activeView = foundryView;
+    sceneMode = 'foundry';
   }
 
   const pitchRad = (PITCH_DEG * Math.PI) / 180;
 
-  // Scratch vectors — reused every frame, no per-frame allocation.
+  // Scratch vectors — reused every frame.
   const target = new Vector3();
   const fwd = new Vector3();
   const right = new Vector3();
-  const rayOrigin = new Vector3();
   const identity = Matrix.Identity();
 
   let fly = false;
   let lastDeaths = 0;
+  let extractHold = 0;
   let last = performance.now();
 
   engine.runRenderLoop(() => {
@@ -73,16 +114,17 @@ function main(): void {
     last = now;
     const clampedDt = Math.min(frameDt, 0.1);
 
-    // 1. Camera input + rig (render-side state, not part of the sim).
+    // Camera rig (shared across scenes).
     const camInput = input.getCameraInput(clampedDt);
     rig.update(camInput, clampedDt);
-
     const yawRad = (rig.yawDeg * Math.PI) / 180;
     const offset = orbitOffset(yawRad, pitchRad, rig.dist);
 
+    const p = world.player;
+
     // Camera basis projected onto the ground plane, for movement rebasing.
-    camera.getDirectionToRef(Axis.X, right);
-    camera.getDirectionToRef(Axis.Z, fwd);
+    activeCamera.getDirectionToRef(Axis.X, right);
+    activeCamera.getDirectionToRef(Axis.Z, fwd);
     const frLen = Math.hypot(fwd.x, fwd.z) || 1;
     const rtLen = Math.hypot(right.x, right.z) || 1;
 
@@ -90,33 +132,25 @@ function main(): void {
     if (input.keyEdge('KeyG')) {
       fly = !fly;
       if (!fly) {
-        world.player.y = STREET_Y;
-        world.player.vy = 0;
+        p.y = sceneMode === 'mission' ? STREET_Y : 0;
+        p.vy = 0;
       }
     }
 
-    // 2. Mouse-cursor aim: picking ray → intersect an aim plane.
-    // Grounded: plane rides at chest height. Airborne: plane drops to street
-    // level, so the cursor points at where it lands on the ground instead of
-    // a chest-height plane that parallaxes away with altitude. The aim-assist
-    // cone then bends shots onto the nearest valid target.
-    const p = world.player;
+    // Aim (unconditional — see M3 fix).
     const pointer = input.getPointer();
     const rect = canvas.getBoundingClientRect();
-    const px = pointer.x - rect.left;
-    const py = pointer.y - rect.top;
     let aimX = 0;
     let aimZ = 0;
     {
-      const ray = scene.createPickingRay(px, py, identity, camera);
-      rayOrigin.copyFrom(ray.origin);
+      const ray = activeScene.createPickingRay(pointer.x - rect.left, pointer.y - rect.top, identity, activeCamera);
       const dy = ray.direction.y;
-      const planeY = p.grounded && !fly ? p.y + AIM_PLANE_OFFSET : STREET_Y + 1;
+      const planeY = p.grounded && !fly ? p.y + AIM_PLANE_OFFSET : Math.max(STREET_Y, p.y - 6) + 1;
       if (Math.abs(dy) > 1e-5) {
-        const t = (planeY - rayOrigin.y) / dy;
+        const t = (planeY - ray.origin.y) / dy;
         if (t > 0) {
-          const hx = rayOrigin.x + ray.direction.x * t - p.x;
-          const hz = rayOrigin.z + ray.direction.z * t - p.z;
+          const hx = ray.origin.x + ray.direction.x * t - p.x;
+          const hz = ray.origin.z + ray.direction.z * t - p.z;
           const hl = Math.hypot(hx, hz);
           if (hl > 0.25) {
             aimX = hx / hl;
@@ -126,7 +160,6 @@ function main(): void {
       }
     }
 
-    // 3. Fixed-step simulation. Intent sampled once per frame, held per step.
     const intent = input.getIntent(
       { x: fwd.x / frLen, z: fwd.z / frLen },
       { x: right.x / rtLen, z: right.z / rtLen },
@@ -137,43 +170,93 @@ function main(): void {
       intent.moveZ *= FLY_SPEED_MULT;
       intent.fly = true;
       intent.flyUp = (intent.jumpHeld ? 1 : 0) - (input.keyDown('KeyC') ? 1 : 0);
-      intent.jumpPressed = false; // A/Space drives ascent in fly mode
+      intent.jumpPressed = false;
     }
+
+    // Foundry interactions (paused while the panel is open).
+    if (sceneMode === 'foundry' && !engineering.isOpen()) {
+      const atEng = Math.hypot(p.x - ENGINEERING_POS.x, p.z - (ENGINEERING_POS.z + 2.5)) < 2.2;
+      const atAsm = Math.hypot(p.x - ASSEMBLY_POS.x, p.z - (ASSEMBLY_POS.z + 2.5)) < 2.2;
+      if (atEng && input.keyEdge('KeyE')) engineering.toggle();
+      if (atAsm && input.keyEdge('KeyE')) hud.setFloor('ASSEMBLY — arrives in M6');
+      // Launch pad walk-in trigger.
+      if (Math.abs(p.x - LAUNCH_ZONE.x) < LAUNCH_ZONE.halfWidth && p.z < LAUNCH_ZONE.z + 1.2) {
+        deploy();
+      }
+    }
+    if (engineering.isOpen()) {
+      intent.moveX = 0;
+      intent.moveZ = 0;
+      intent.fireHeld = false;
+      intent.jumpPressed = false;
+      intent.dashPressed = false;
+    }
+
+    // Extract tram (mission): hold E to bank and return.
+    if (sceneMode === 'mission') {
+      const atExtract = Math.hypot(p.x - world.collision!.spawn.x, p.z - world.collision!.spawn.z) < 4;
+      if (atExtract && intent.interactHeld) {
+        extractHold += clampedDt;
+        if (extractHold >= EXTRACT_HOLD) {
+          extractHold = 0;
+          returnToFoundry();
+        }
+      } else {
+        extractHold = 0;
+      }
+      hud.setHackProgress(atExtract ? 1 - extractHold / EXTRACT_HOLD : null);
+    } else {
+      hud.setHackProgress(null);
+    }
+
+    // 2. Fixed-step simulation.
     advance(acc, frameDt, (dt) => stepWorld(world, intent, dt));
     (window as { __lastIntent?: unknown }).__lastIntent = intent;
 
-    // 4. Render sync.
+    // 3. Render sync.
     playerTarget(p, target);
-    playerView.sync(p);
-    const groundTop = topSurfaceAt(world.collision!.surfaces, p.x, p.z, p.y + 0.01);
-    playerView.updateShadow(p.x, p.y, p.z, groundTop ? groundTop.y : null);
-    camera.position.set(target.x + offset.x, target.y + offset.y, target.z + offset.z);
-    camera.setTarget(target);
+    activeView.sync(p);
+    if (sceneMode === 'mission') {
+      const groundTop = topSurfaceAt(world.collision!.surfaces, p.x, p.z, p.y + 0.01);
+      missionView.updateShadow(p.x, p.y, p.z, groundTop ? groundTop.y : null);
+      mission.camera.position.set(target.x + offset.x, target.y + offset.y, target.z + offset.z);
+      mission.camera.setTarget(target);
+      mission.city.update(p.x, p.y, p.z, clampedDt);
+      combatView.update(world.combat, world.time);
+      // Gate visuals follow sim state.
+      for (const g of missionCollision.gates) {
+        mission.city.setGateOpen(g.id, !missionCollision.walls.includes(g.wall));
+      }
+      hud.setFloor(floorLabel(floorAt(p.x, p.y, p.z)));
+    } else {
+      foundry.camera.position.set(target.x + offset.x, target.y + offset.y, target.z + offset.z);
+      foundry.camera.setTarget(target);
+      hud.setFloor('FOUNDRY');
+    }
 
-    city.update(p.x, p.y, p.z, clampedDt);
-    combatView.update(world.combat, world.time);
-    if (god) world.stats.hull = world.stats.maxHull; // QA: never die during screenshot runs
-    hud.setFloor(floorLabel(floorAt(p.x, p.y, p.z)));
     hud.setCameraMode(rig);
     hud.setVitals(
       world.stats.hull / world.stats.maxHull,
-      world.reactor.energy / reactorMax(),
+      world.reactor.energy / Math.max(1, world.reactor.max),
       world.stats.credits,
       world.stats.scrap,
       world.stats.deaths,
     );
+    hud.setMode(`${world.loadout.mode} · ${modesOwned(loadout).length} modes`);
+    if (world.hack.target) hud.setHackProgress(world.hack.progress);
+    else if (sceneMode === 'mission') hud.setHackProgress(null);
     if (world.stats.deaths !== lastDeaths) {
       lastDeaths = world.stats.deaths;
       hud.flashDeath();
     }
-    scene.render();
+    activeScene.render();
   });
 
   window.addEventListener('resize', () => engine.resize());
 
   // QA hook: lets the in-app browser read sim state (window.__world).
-  (window as { __world?: unknown }).__world = world;
-  (window as { __scene?: unknown }).__scene = scene;
+  (window as { __world?: unknown }).__world = foundryWorld;
+  (window as { __scenes?: unknown }).__scenes = { foundry: foundry.scene, mission: mission.scene };
 }
 
 main();

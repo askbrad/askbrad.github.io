@@ -3,7 +3,7 @@ import { FIXED_DT } from '../../src/sim/loop';
 import { createWorld, stepWorld, STEP_H } from '../../src/sim/world';
 import { buildCollision } from '../../src/sim/city/colliders';
 import { CITY } from '../../src/sim/city/city';
-import { createReactor, reactorMax, regenReactor, spend, TUNE } from '../../src/sim/energy';
+import { createReactor, regenReactor, spend, TUNE } from '../../src/sim/energy';
 import { ENEMY_TYPES, type EnemyState } from '../../src/sim/enemies';
 import {
   createCombat,
@@ -65,8 +65,8 @@ function stepN(c: Ctx, n: number, fire = false, punch = false, aimX = 1, aimZ = 
       c.combat,
       c.reactor,
       c.player,
-      { fireHeld: fire, punchPressed: punch, aimX, aimZ },
-      { col: COL, onPlayerDeath: () => {} },
+      { fireHeld: fire, punchPressed: punch, aimX, aimZ, blasterHeld: false },
+      { col: COL, loadout: { credits: 0, modules: [], mode: 'STANDARD', toggles: { freePurchases: false, infiniteEnergy: false } }, onPlayerDeath: () => {} },
       FIXED_DT,
       i * FIXED_DT,
       c.stats,
@@ -93,7 +93,7 @@ describe('reactor (energy)', () => {
   it('clamps at max and refuses spends when empty', () => {
     const r = createReactor();
     regenReactor(r, 100, true);
-    expect(r.energy).toBe(reactorMax());
+    expect(r.energy).toBe(r.max);
     r.energy = TUNE.blasterCost;
     expect(spend(r, TUNE.blasterCost)).toBe(true);
     expect(r.energy).toBe(0);
@@ -295,7 +295,7 @@ describe('death & respawn (no penalty — plan §11.5)', () => {
     }
     expect(world.stats.deaths).toBe(1);
     expect(world.stats.hull).toBe(world.stats.maxHull);
-    expect(world.reactor.energy).toBe(reactorMax());
+    expect(world.reactor.energy).toBe(world.reactor.max);
     expect(world.player.x).toBeCloseTo(COL.spawn.x, 1);
     expect(world.player.z).toBeCloseTo(COL.spawn.z, 1);
     expect(world.combat.enemies.length).toBe(enemyCount);
@@ -324,7 +324,12 @@ function zeroIntent() {
     aimX: 0,
     aimZ: 0,
     fly: false,
-    flyUp: 0,
+  flyUp: 0,
+  dashPressed: false,
+  interactHeld: false,
+  modeNextPressed: false,
+  modePrevPressed: false,
+  blasterHeld: false,
   };
 }
 

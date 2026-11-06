@@ -44,11 +44,29 @@ export interface Surface {
   z1: number;
 }
 
+export interface GateCollider {
+  id: string;
+  wall: BoxCollider;
+  /** Live terminal position (from data). */
+  terminal: { x: number; z: number };
+}
+
 export interface CollisionWorld {
   walls: BoxCollider[];
   surfaces: Surface[];
   trees: Array<{ x: number; z: number; r: number }>;
   spawn: { x: number; y: number; z: number };
+  /** Upgrade-gated force fields (M4): removable wall + terminal position. */
+  gates: GateCollider[];
+}
+
+/** Remove an opened gate's collider (mutates the walls array). */
+export function openGate(col: CollisionWorld, id: string): boolean {
+  const g = col.gates.find((x) => x.id === id);
+  if (!g) return false;
+  const idx = col.walls.indexOf(g.wall);
+  if (idx >= 0) col.walls.splice(idx, 1);
+  return true;
 }
 
 const WALL_T = 0.5;
@@ -195,11 +213,19 @@ export function buildCollision(): CollisionWorld {
   walls.push({ x0: -E - 4, x1: E + 4, y0: -10, y1: 120, z0: -E - 4, z1: -E });
   walls.push({ x0: -E - 4, x1: E + 4, y0: -10, y1: 120, z0: E, z1: E + 4 });
 
+  // Upgrade-gated force fields.
+  const gates: GateCollider[] = (CITY.gates ?? []).map((g) => {
+    const wall: BoxCollider = { ...g.wall };
+    walls.push(wall);
+    return { id: g.id, wall, terminal: { x: g.terminal.x, z: g.terminal.z } };
+  });
+
   return {
     walls,
     surfaces,
     trees: TREES.map((t) => ({ x: t.x, z: t.z, r: t.r })),
     spawn: { x: CITY.deploy.x, y: STREET_Y, z: CITY.deploy.z },
+    gates,
   };
 }
 
@@ -209,6 +235,7 @@ export const DEFAULT_COLLISION: CollisionWorld = {
   surfaces: [{ y: 0, x0: -1e9, z0: -1e9, x1: 1e9, z1: 1e9 }],
   trees: [],
   spawn: { x: 0, y: 0, z: 0 },
+  gates: [],
 };
 
 /** True if the wall blocks a capsule of radius `r` whose feet are at `feetY`. */

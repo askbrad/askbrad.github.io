@@ -9,7 +9,8 @@
  * (plan §11.5): respawn at the tram, enemies reset, loot and upgrades kept.
  */
 
-import { TUNE, regenReactor, reactorMax, spend, type Reactor } from './energy';
+import { TUNE, canPay, regenReactor, spend, type Reactor } from './energy';
+import { lightningTier, recoveryEffects, tierDef, type Loadout } from './build';
 import { damageEnemy, stepEnemies, spawnEnemies, type EnemyState } from './enemies';
 import { wallBlocks, type CollisionWorld } from './city/colliders';
 import { PLAYER_R } from './world';
@@ -47,6 +48,8 @@ export interface CombatState {
   hurtFlash: number;
   /** Enemy currently in the aim-assist cone (render: target ring). */
   assistEnemyId: number | null;
+  /** Lightning chain FX: flat segment lists [x,y,z, x,y,z, ...] with ttl. */
+  bolts: Array<{ segs: number[]; ttl: number }>;
 }
 
 /** Intent fragment consumed by the combat pass. */
@@ -56,6 +59,8 @@ export interface CombatIntent {
   /** Normalized world-space aim direction (falls back to facing). */
   aimX: number;
   aimZ: number;
+  /** Baseline blaster held regardless of mode (MMB / 1 / pad LT). */
+  blasterHeld: boolean;
 }
 
 /** Player fragments the combat pass reads/mutates. */
@@ -87,7 +92,73 @@ export function createCombat(): CombatState {
     punchCd: 0,
     hurtFlash: 0,
     assistEnemyId: null,
+    bolts: [],
   };
+}
+
+/**
+ * Chain lightning (THUNDER mode weapon): strike the assist target, then jump
+ * to the nearest unhit enemy within hop range of the last, with LOS checks.
+ * Returns false when unaffordable or no target — caller falls back to blaster.
+ */
+export function lightningStrike(
+  reactor: Reactor,
+  combat: CombatState,
+  player: CombatPlayer,
+  aimX: number,
+  aimZ: number,
+  loadout: Loadout,
+  walls: CollisionWorld['walls'],
+): boolean {
+  const t = lightningTier(loadout);
+  if (t <= 0) return false;
+  const fx = tierDef('lightning', t).effects;
+  if (!canPay(reactor, fx['cost'] ?? 8, loadout.toggles.infiniteEnergy)) return false;
+
+  const first = pickAimAssist(combat, player.x, player.y, player.z, aimX, aimZ, walls);
+  if (!first) return false;
+
+  const hit: EnemyState[] = [first];
+  const maxChains = fx['chains'] ?? 2;
+  const hopRange = 12;
+  while (hit.length < maxChains) {
+    const cur = hit[hit.length - 1]!;
+    let next: EnemyState | null = null;
+    let nextD = Infinity;
+    for (const e of combat.enemies) {
+      if (!e.alive || hit.includes(e)) continue;
+      const d = Math.hypot(e.x - cur.x, e.z - cur.z);
+      if (d > hopRange) continue;
+      // LOS between chests.
+      let blocked = false;
+      for (let s = 1; s < 4; s++) {
+        const f = s / 4;
+        if (wallBlocks(walls, cur.x + (e.x - cur.x) * f, cur.z + (e.z - cur.z) * f, cur.y + 0.9 + (e.y - cur.y) * f, 0.15, 0.6)) {
+          blocked = true;
+          break;
+        }
+      }
+      if (!blocked && d < nextD) {
+        nextD = d;
+        next = e;
+      }
+    }
+    if (!next) break;
+    hit.push(next);
+  }
+
+  // FX: player chest → each hit chest.
+  const segs = [player.x, player.y + 1.15, player.z];
+  for (const e of hit) {
+    segs.push(e.x, e.y + 0.9, e.z);
+    damageEnemy(e, fx['damage'] ?? 14, 0, 0);
+  }
+  combat.bolts.push({ segs, ttl: 0.18 });
+
+  if (!loadout.toggles.infiniteEnergy) {
+    reactor.energy = Math.max(0, reactor.energy - (fx['cost'] ?? 8));
+  }
+  return true;
 }
 
 export function fireBlaster(
@@ -99,10 +170,11 @@ export function fireBlaster(
   dirX: number,
   dirZ: number,
   target?: { x: number; y: number; z: number },
+  infiniteEnergy = false,
 ): { fired: boolean; lowPower: boolean } {
   const len = Math.hypot(dirX, dirZ);
   if (len < 1e-6) return { fired: false, lowPower: false };
-  const paid = spend(reactor, TUNE.blasterCost);
+  const paid = infiniteEnergy || spend(reactor, TUNE.blasterCost);
   const dmg = paid ? TUNE.blasterDamage : TUNE.lowPowerDamage;
 
   // Pitch-only assist (per plan §5 and the design note): the player owns
@@ -221,6 +293,7 @@ export function doPunch(
 
 export interface CombatRefs {
   col: CollisionWorld;
+  loadout: Loadout;
   onPlayerDeath: () => void;
 }
 
@@ -241,6 +314,13 @@ export function stepCombat(
   combat.fireCd = Math.max(0, combat.fireCd - dt);
   combat.punchCd = Math.max(0, combat.punchCd - dt);
   combat.hurtFlash = Math.max(0, combat.hurtFlash - dt);
+  for (const b of combat.bolts) b.ttl -= dt;
+  combat.bolts = combat.bolts.filter((b) => b.ttl > 0);
+
+  const loadout = refs.loadout;
+
+  // Lab toggle: infinite energy pins the meter.
+  if (loadout.toggles.infiniteEnergy) reactor.energy = reactor.max;
 
   // Default aim direction = current facing.
   let aimX = intent.aimX;
@@ -259,10 +339,20 @@ export function stepCombat(
   const assist = pickAimAssist(combat, player.x, player.y, player.z, aimX, aimZ, refs.col.walls);
   combat.assistEnemyId = assist?.id ?? null;
 
-  if (intent.fireHeld && combat.fireCd <= 0) {
+  if ((intent.fireHeld || intent.blasterHeld) && combat.fireCd <= 0) {
     const assistPoint = assist ? { x: assist.x, y: assist.y + 0.9, z: assist.z } : undefined;
-    fireBlaster(reactor, combat, player.x, player.y, player.z, aimX, aimZ, assistPoint);
-    combat.fireCd = TUNE.blasterRoF;
+
+    // Mode weapon: THUNDER → chain lightning (free-blaster fallback on empty).
+    if (loadout.mode === 'THUNDER' && intent.fireHeld && !intent.blasterHeld &&
+        lightningTier(loadout) > 0 &&
+        lightningStrike(reactor, combat, player, aimX, aimZ, loadout, refs.col.walls)) {
+      combat.fireCd = 0.5; // lightning cycles slower than the carbine
+    } else {
+      const lowPower = !canPay(reactor, TUNE.blasterCost, loadout.toggles.infiniteEnergy);
+      fireBlaster(reactor, combat, player.x, player.y, player.z, aimX, aimZ, assistPoint, loadout.toggles.infiniteEnergy);
+      void lowPower;
+      combat.fireCd = TUNE.blasterRoF;
+    }
   }
   if (intent.punchPressed && combat.punchCd <= 0) {
     doPunch(combat, player.x, player.y, player.z, aimX, aimZ);
@@ -351,10 +441,12 @@ export function stepCombat(
   );
 
   // ── Loot ─────────────────────────────────────────────────────────────
+  const killRefund = recoveryEffects(loadout).killRefund;
   for (const e of combat.enemies) {
     const lootable = e as EnemyState & { looted?: boolean };
     if (!e.alive && !lootable.looted) {
       lootable.looted = true;
+      if (killRefund > 0) reactor.energy = Math.min(reactor.max, reactor.energy + killRefund);
       combat.drops.push({ id: dropId++, kind: 'credit', amount: e.def.credits, x: e.x + 0.4, y: e.y, z: e.z, born: time });
       combat.drops.push({ id: dropId++, kind: 'scrap', amount: e.def.scrap, x: e.x - 0.4, y: e.y, z: e.z, born: time });
     }
@@ -372,7 +464,7 @@ export function stepCombat(
   if (stats.hull <= 0) {
     stats.deaths++;
     stats.hull = stats.maxHull;
-    reactor.energy = reactorMax();
+    reactor.energy = reactor.max;
     player.x = refs.col.spawn.x;
     player.y = refs.col.spawn.y;
     player.z = refs.col.spawn.z;
@@ -381,6 +473,6 @@ export function stepCombat(
     refs.onPlayerDeath();
   }
 
-  // ── Reactor regen ────────────────────────────────────────────────────
-  regenReactor(reactor, dt, player.grounded);
+  // ── Reactor regen (Recovery branch adds a bonus) ──────────────────────
+  regenReactor(reactor, dt, player.grounded, recoveryEffects(loadout).regenBonus);
 }

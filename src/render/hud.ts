@@ -14,6 +14,8 @@ export class Hud {
   private readonly floorChip: HTMLElement;
   private readonly lootChip: HTMLElement;
   private readonly deathFlash: HTMLElement;
+  private hackBar: HTMLElement | null = null;
+  private hackFill: HTMLElement | null = null;
 
   constructor(private readonly root: HTMLElement) {
     root.innerHTML = `
@@ -63,6 +65,32 @@ export class Hud {
     if (this.floorChip.textContent !== label) this.floorChip.textContent = label;
   }
 
+  setMode(label: string): void {
+    this.modeChip.textContent = `MODE · ${label}`;
+  }
+
+  /** Hack/extract channel bar; null hides it. */
+  setHackProgress(frac: number | null): void {
+    if (frac === null) {
+      if (this.hackBar) this.hackBar.style.display = 'none';
+      return;
+    }
+    if (!this.hackBar) {
+      this.hackBar = document.createElement('div');
+      this.hackBar.style.cssText = `
+        position: absolute; left: 50%; bottom: 90px; transform: translateX(-50%);
+        width: 240px; height: 8px; background: rgba(8,12,18,0.72);
+        border: 1px solid rgba(120,190,230,0.4); border-radius: 3px; overflow: hidden;`;
+      const fill = document.createElement('div');
+      fill.style.cssText = 'height:100%;width:0%;background:linear-gradient(90deg,#35d07f,#a0f5c5);';
+      this.hackBar.appendChild(fill);
+      this.hackFill = fill;
+      this.root.appendChild(this.hackBar);
+    }
+    this.hackBar.style.display = 'block';
+    this.hackFill!.style.width = `${Math.round(Math.max(0, Math.min(1, frac)) * 100)}%`;
+  }
+
   /** Vital bars (fractions 0..1) + loot counters. */
   setVitals(hullFrac: number, energyFrac: number, credits: number, scrap: number, deaths: number): void {
     this.hullFill.style.width = `${Math.round(Math.max(0, Math.min(1, hullFrac)) * 100)}%`;
@@ -74,11 +102,5 @@ export class Hud {
   flashDeath(): void {
     this.deathFlash.classList.add('active');
     window.setTimeout(() => this.deathFlash.classList.remove('active'), 350);
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  setMode(mode: string): void {
-    // Attack modes arrive in M4; chip text is static until then.
-    void this.modeChip;
   }
 }

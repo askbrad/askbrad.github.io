@@ -63,6 +63,7 @@ export interface CityData {
   sewer: SewerDef;
   deploy: { x: number; z: number };
   extract: { x: number; z: number };
+  gates?: GateDef[];
 }
 
 export const CITY = raw as unknown as CityData;
@@ -70,6 +71,12 @@ export const CITY = raw as unknown as CityData;
 export const STREET_Y = CITY.meta.streetY;
 export const STOREY_H = CITY.meta.storeyHeight;
 export const EXTENT = CITY.meta.extent;
+
+export interface GateDef {
+  id: string;
+  terminal: { x: number; z: number };
+  wall: { x0: number; x1: number; y0: number; y1: number; z0: number; z1: number };
+}
 
 // ── Layers / occupancy ──────────────────────────────────────────────────────
 
