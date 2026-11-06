@@ -212,6 +212,7 @@ function main(): void {
     // 2. Fixed-step simulation.
     advance(acc, frameDt, (dt) => stepWorld(world, intent, dt));
     (window as { __lastIntent?: unknown }).__lastIntent = intent;
+    (window as { __world?: unknown }).__world = world; // QA: always the active world
 
     // 3. Render sync.
     playerTarget(p, target);

@@ -11,6 +11,7 @@ import {
   inRect,
   roofY,
 } from '../../src/sim/city/city';
+import data from '../../src/data/enemies.json';
 
 const { buildings, sewer, meta } = CITY;
 
@@ -44,6 +45,15 @@ describe('city data sanity', () => {
   it('places all shafts inside at least one sewer corridor', () => {
     for (const sh of sewer.shafts) {
       expect(sewer.corridors.some((c) => inRect(c, sh.x, sh.z))).toBe(true);
+    }
+  });
+
+  it('never spawns an enemy inside a solid block', () => {
+    for (const s of data.spawns) {
+      for (const blk of CITY.solidBlocks) {
+        const inside = s.x > blk.x0 && s.x < blk.x1 && s.z > blk.z0 && s.z < blk.z1;
+        expect(inside, `spawn ${s.type} (${s.x},${s.z}) is inside solid block ${blk.id}`).toBe(false);
+      }
     }
   });
 

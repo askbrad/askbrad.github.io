@@ -43,7 +43,7 @@
     }
   },
   "spawns": [
-    { "type": "skitter", "x": 0, "z": 60 },
+    { "type": "skitter", "x": 0, "z": 48 },
     { "type": "skitter", "x": -25, "z": 35 },
     { "type": "skitter", "x": 25, "z": 25 },
     { "type": "skitter", "x": -50, "z": -10 },
