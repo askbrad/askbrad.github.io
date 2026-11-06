@@ -41,7 +41,8 @@ export class EngineeringUI {
       position: fixed; inset: 4vh 4vw; background: rgba(8, 12, 18, 0.94);
       border: 1px solid rgba(120, 190, 230, 0.4); border-radius: 8px;
       color: #cfe6f5; font-family: 'Segoe UI', system-ui, sans-serif;
-      padding: 18px 22px; overflow-y: auto; display: none; z-index: 20;`;
+      padding: 18px 22px; overflow-y: auto; display: none; z-index: 20;
+      pointer-events: auto;`;
     root.appendChild(this.panel);
     this.render();
   }
