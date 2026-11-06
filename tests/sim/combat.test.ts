@@ -252,6 +252,21 @@ describe('aim assist & pitched shots', () => {
     stepN(c, 40); // ~0.7 s of flight
     expect(e.hp).toBeLessThan(ENEMY_TYPES['skitter']!.hp);
   });
+
+  it('pitch-only assist never alters the player’s horizontal aim', () => {
+    const c = ctx();
+    // Enemy sits 1 m off the aim line — assist may pitch, never steer.
+    const e = makeEnemy({ x: 6, z: 87, y: 14 });
+    c.combat.enemies = [e];
+    c.player.x = 0;
+    c.player.z = 86;
+    c.player.y = 20;
+    fireBlaster(c.reactor, c.combat, c.player.x, c.player.y, c.player.z, 1, 0, { x: e.x, y: e.y + 0.9, z: e.z });
+    const proj = c.combat.projectiles[0]!;
+    expect(proj.vz).toBe(0); // aim was +X; vz must stay 0
+    expect(proj.vx).toBeGreaterThan(0);
+    expect(proj.vy).toBeLessThan(0); // pitch corrected
+  });
 });
 
 describe('death & respawn (no penalty — plan §11.5)', () => {

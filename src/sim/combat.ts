@@ -102,18 +102,23 @@ export function fireBlaster(
   const paid = spend(reactor, TUNE.blasterCost);
   const dmg = paid ? TUNE.blasterDamage : TUNE.lowPowerDamage;
 
-  // Straight line to an assisted target, or level flight along the aim dir.
+  // Pitch-only assist (per plan §5 and the design note): the player owns
+  // horizontal aim 1:1 — the game corrects ONLY the vertical component so
+  // shots arrive at the assisted target's height. Fine targeting stays exact.
   let vx: number;
   let vy = 0;
   let vz: number;
   if (target) {
-    const tx = target.x - x;
-    const ty = target.y - (y + 1.15);
-    const tz = target.z - z;
-    const l3 = Math.hypot(tx, ty, tz) || 1;
-    vx = (tx / l3) * TUNE.blasterSpeed;
-    vy = (ty / l3) * TUNE.blasterSpeed;
-    vz = (tz / l3) * TUNE.blasterSpeed;
+    const hx = target.x - x;
+    const hz = target.z - z;
+    const distXZ = Math.hypot(hx, hz);
+    if (distXZ > 0.01) {
+      // Level speed along the aim direction; vy timed to arrive at target height.
+      const flightTime = distXZ / TUNE.blasterSpeed;
+      vy = (target.y - (y + 1.15)) / flightTime;
+    }
+    vx = (dirX / len) * TUNE.blasterSpeed;
+    vz = (dirZ / len) * TUNE.blasterSpeed;
   } else {
     vx = (dirX / len) * TUNE.blasterSpeed;
     vz = (dirZ / len) * TUNE.blasterSpeed;
