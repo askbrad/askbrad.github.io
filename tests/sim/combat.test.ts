@@ -221,7 +221,7 @@ describe('aim assist & pitched shots', () => {
     const t = pickAimAssist(c.combat, 0, 14, 86, 1, 0, COL.walls);
     expect(t).not.toBeNull();
     expect(t!.x).toBeCloseTo(8, 1);
-    expect(t!.y).toBeCloseTo(14.9, 1);
+    expect(t!.y + 0.9).toBeCloseTo(14.9, 1); // shot point is the body centre
   });
 
   it('ignores enemies outside the 15° cone', () => {
@@ -266,6 +266,16 @@ describe('aim assist & pitched shots', () => {
     expect(proj.vz).toBe(0); // aim was +X; vz must stay 0
     expect(proj.vx).toBeGreaterThan(0);
     expect(proj.vy).toBeLessThan(0); // pitch corrected
+  });
+  it('tracks the assist lock every step (combat.assistEnemyId)', () => {
+    const c = ctx();
+    const ahead = makeEnemy({ x: 8, z: 86, y: 14 });
+    c.combat.enemies = [ahead];
+    stepN(c, 2); // no firing — the lock is computed continuously
+    expect(c.combat.assistEnemyId).toBe(ahead.id);
+    // Turn away: lock releases.
+    stepN(c, 2, false, false, -1, 0);
+    expect(c.combat.assistEnemyId).toBeNull();
   });
 });
 

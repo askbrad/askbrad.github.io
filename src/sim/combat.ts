@@ -45,6 +45,8 @@ export interface CombatState {
   punchCd: number;
   /** Render-side damage feedback on the player. */
   hurtFlash: number;
+  /** Enemy currently in the aim-assist cone (render: target ring). */
+  assistEnemyId: number | null;
 }
 
 /** Intent fragment consumed by the combat pass. */
@@ -84,6 +86,7 @@ export function createCombat(): CombatState {
     fireCd: 0,
     punchCd: 0,
     hurtFlash: 0,
+    assistEnemyId: null,
   };
 }
 
@@ -140,9 +143,9 @@ export function fireBlaster(
 
 /**
  * Soft aim-assist: nearest alive enemy inside a small cone along the fire
- * direction, with a cheap line-of-sight check. Returns the point to aim at
- * (enemy body centre) or null — the player always picks the direction; the
- * game just bends the shot onto a valid target (plan §5 feel note).
+ * direction, with a cheap line-of-sight check. Returns the enemy itself (the
+ * shot point is its body centre) or null. Pitch-only: the caller keeps the
+ * player's horizontal aim untouched — the assist decides height, never steer.
  */
 export function pickAimAssist(
   combat: CombatState,
@@ -152,9 +155,9 @@ export function pickAimAssist(
   dirX: number,
   dirZ: number,
   walls: CollisionWorld['walls'],
-): { x: number; y: number; z: number } | null {
+): EnemyState | null {
   const CONE_COS = Math.cos((15 * Math.PI) / 180);
-  let best: { x: number; y: number; z: number } | null = null;
+  let best: EnemyState | null = null;
   let bestScore = -Infinity;
 
   for (const e of combat.enemies) {
@@ -185,7 +188,7 @@ export function pickAimAssist(
     const score = dot * 2 - dist / 60;
     if (score > bestScore) {
       bestScore = score;
-      best = { x: e.x, y: e.y + 0.9, z: e.z };
+      best = e;
     }
   }
   return best;
@@ -251,10 +254,14 @@ export function stepCombat(
   aimZ /= aimLen;
 
   // ── Player attacks ───────────────────────────────────────────────────
+  // Aim assist runs every step so the HUD/ring shows the current target even
+  // between shots. Pitch-only: horizontal aim is never altered.
+  const assist = pickAimAssist(combat, player.x, player.y, player.z, aimX, aimZ, refs.col.walls);
+  combat.assistEnemyId = assist?.id ?? null;
+
   if (intent.fireHeld && combat.fireCd <= 0) {
-    // Aim assist: bend the shot onto the nearest valid target in the cone.
-    const assist = pickAimAssist(combat, player.x, player.y, player.z, aimX, aimZ, refs.col.walls);
-    fireBlaster(reactor, combat, player.x, player.y, player.z, aimX, aimZ, assist ?? undefined);
+    const assistPoint = assist ? { x: assist.x, y: assist.y + 0.9, z: assist.z } : undefined;
+    fireBlaster(reactor, combat, player.x, player.y, player.z, aimX, aimZ, assistPoint);
     combat.fireCd = TUNE.blasterRoF;
   }
   if (intent.punchPressed && combat.punchCd <= 0) {

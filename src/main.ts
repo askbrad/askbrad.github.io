@@ -173,6 +173,7 @@ function main(): void {
 
   // QA hook: lets the in-app browser read sim state (window.__world).
   (window as { __world?: unknown }).__world = world;
+  (window as { __scene?: unknown }).__scene = scene;
 }
 
 main();

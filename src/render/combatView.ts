@@ -32,12 +32,29 @@ export class CombatView {
   private readonly dropMeshes = new Map<number, Mesh>();
   private readonly creditMat: StandardMaterial;
   private readonly scrapMat: StandardMaterial;
+  private readonly assistRing: Mesh;
+  private readonly assistRingMat: StandardMaterial;
 
   constructor(private readonly scene: Scene) {
     this.tracerPlayerMat = mat(scene, 'tracerP', 0.95, 0.8, 0.3, 0.9); // gold (ballistic FX colour)
     this.tracerEnemyMat = mat(scene, 'tracerE', 0.65, 0.3, 0.9, 0.9); // violet
     this.creditMat = mat(scene, 'dropCredit', 0.95, 0.78, 0.25, 0.6);
     this.scrapMat = mat(scene, 'dropScrap', 0.55, 0.6, 0.68, 0.25);
+
+    // Translucent target ring shown under the current aim-assist target —
+    // makes what the assist is doing legible (playtest feedback).
+    this.assistRing = MeshBuilder.CreateTorus('assistRing', { diameter: 2, thickness: 0.14, tessellation: 32 }, scene);
+    this.assistRing.rotation.x = Math.PI / 2; // lie flat on the ground
+    this.assistRingMat = new StandardMaterial('assistRingMat', scene);
+    this.assistRingMat.emissiveColor = new Color3(1, 0.78, 0.25); // warm gold
+    this.assistRingMat.diffuseColor = new Color3(0, 0, 0);
+    this.assistRingMat.specularColor = new Color3(0, 0, 0);
+    this.assistRingMat.alpha = 0.4;
+    this.assistRingMat.disableDepthWrite = true; // never swallowed by the target's body
+    this.assistRingMat.zOffset = -2; // pull toward the camera
+    this.assistRing.material = this.assistRingMat;
+    this.assistRing.isPickable = false;
+    this.assistRing.setEnabled(false);
   }
 
   private makeEnemyMesh(type: string): EnemyMesh {
@@ -50,8 +67,9 @@ export class CombatView {
       base = mat(this.scene, `enemyMat_${type}`, 0.85, 0.3, 0.38); // hostile red
     } else {
       mesh = MeshBuilder.CreateSphere(`enemy_${type}`, { diameter: radius * 2, segments: 10 }, this.scene);
-      base = mat(this.scene, `enemyMat_${type}`, 0.6, 0.35, 0.85); // violet
+      base = mat(this.scene, `enemyMat_${type}`, 0.45, 0.16, 0.72, 0.55); // saturated violet
     }
+    mesh.material = base;
     mesh.isPickable = false;
     return { root: mesh, baseMat: base, type, radius };
   }
@@ -113,6 +131,21 @@ export class CombatView {
       ti++;
     }
     for (; ti < this.tracers.length; ti++) this.tracers[ti]!.setEnabled(false);
+
+    // ── Aim-assist target ring ─────────────────────────────────────────
+    const assist = combat.assistEnemyId !== null
+      ? combat.enemies.find((e) => e.id === combat.assistEnemyId && e.alive)
+      : undefined;
+    if (assist) {
+      this.assistRing.setEnabled(true);
+      const rr = (assist.def.radius ?? 0.8) + 0.9;
+      this.assistRing.scaling.set(rr, rr, 1); // torus radius 1 → ring radius rr
+      this.assistRing.position.set(assist.x, assist.y + 0.3, assist.z);
+      // Gentle alpha pulse so it reads as "live lock", not decoration.
+      this.assistRingMat.alpha = 0.35 + 0.15 * Math.sin(time * 6);
+    } else {
+      this.assistRing.setEnabled(false);
+    }
 
     // ── Drops ──────────────────────────────────────────────────────────
     const seenDrops = new Set<number>();
