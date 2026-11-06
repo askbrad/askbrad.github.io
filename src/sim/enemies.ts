@@ -10,7 +10,7 @@ import { STREET_Y } from './city/city';
 import { topSurfaceAt, wallBlocks, type CollisionWorld } from './city/colliders';
 import { STEP_H } from './world';
 
-export type EnemyType = 'skitter' | 'spitter';
+export type EnemyType = 'skitter' | 'hopper' | 'spitter' | 'bulwark' | 'conductor';
 
 export interface EnemyTypeDef {
   hp: number;
@@ -19,9 +19,17 @@ export interface EnemyTypeDef {
   aggroRange: number;
   credits: number;
   scrap: number;
-  // skitter
+  // skitter / hopper / bulwark / conductor
   contactDamage?: number;
   contactCooldown?: number;
+  // hopper
+  lungeInterval?: number;
+  lungeSpeed?: number;
+  lungeTime?: number;
+  // bulwark: damage reduction when hit from its facing arc
+  frontalResist?: number;
+  // conductor: each conductor in a chain grants extra hops
+  chainBonus?: number;
   // spitter
   projectileDamage?: number;
   projectileSpeed?: number;
@@ -60,6 +68,11 @@ export interface EnemyState {
   settled: boolean;
   /** One-shot loot guard. */
   looted?: boolean;
+  // Hopper lunge state.
+  lungeCd: number;
+  lungeT: number;
+  lungeDx: number;
+  lungeDz: number;
 }
 
 let nextId = 1;
@@ -88,15 +101,23 @@ export function spawnEnemies(): EnemyState[] {
       hitFlash: 0,
       alive: true,
       settled: false,
+      lungeCd: 1 + ((s.x * 7 + s.z) % 15) / 10, // staggered, deterministic
+      lungeT: 0,
+      lungeDx: 0,
+      lungeDz: 0,
     });
   }
   return out;
 }
 
-/** Apply damage; returns true if this hit killed the enemy. */
-export function damageEnemy(e: EnemyState, amount: number, kx = 0, kz = 0): boolean {
+/** Apply damage; returns true if this hit killed the enemy.
+ * `fromDot`: dot product of the enemy's facing vs the attack approach —
+ * Bulwarks resist frontal hits (tech-tree "guards front, backs exposed"). */
+export function damageEnemy(e: EnemyState, amount: number, kx = 0, kz = 0, fromDot = 0): boolean {
   if (!e.alive) return false;
-  e.hp -= amount;
+  let dmg = amount;
+  if (e.def.frontalResist && fromDot > 0.3) dmg *= 1 - e.def.frontalResist;
+  e.hp -= dmg;
   e.hitFlash = 0.12;
   e.kx += kx;
   e.kz += kz;
@@ -146,18 +167,8 @@ export function stepEnemies(
     if (e.aggro) {
       const ux = dist > 0.01 ? dx / dist : 1;
       const uz = dist > 0.01 ? dz / dist : 0;
-      if (e.type === 'skitter') {
-        if (dist > 0.01) {
-          mvx = ux * e.def.speed;
-          mvz = uz * e.def.speed;
-        }
-        // Contact damage — must fire even at zero distance (no free overlap).
-        if (dist < e.def.radius + 0.8 && e.cooldown <= 0 && Math.abs(player.y - e.y) < 2) {
-          onShoot(e, ux, uz); // signal: contact hit (reuses the shoot callback slot)
-          e.cooldown = e.def.contactCooldown ?? 0.9;
-        }
-      } else {
-        // Spitter: hold the standoff band, shoot on cooldown.
+      if (e.type === 'spitter') {
+        // Hold the standoff band, shoot on cooldown.
         const min = e.def.standoffMin ?? 12;
         const max = e.def.standoffMax ?? 20;
         if (dist > max) {
@@ -171,7 +182,37 @@ export function stepEnemies(
           onShoot(e, ux, uz);
           e.cooldown = e.def.fireInterval ?? 2.2;
         }
+      } else if (e.type === 'hopper') {
+        // Walk in, lunge on a cycle — burst of speed along a locked direction.
+        e.lungeCd -= dt;
+        if (e.lungeT > 0) {
+          e.lungeT -= dt;
+          mvx = e.lungeDx;
+          mvz = e.lungeDz;
+        } else if (e.lungeCd <= 0 && dist > 2 && dist < 16) {
+          e.lungeCd = e.def.lungeInterval ?? 2.2;
+          e.lungeT = e.def.lungeTime ?? 0.35;
+          e.lungeDx = ux * (e.def.lungeSpeed ?? 16);
+          e.lungeDz = uz * (e.def.lungeSpeed ?? 16);
+        } else if (dist > 0.01) {
+          mvx = ux * e.def.speed;
+          mvz = uz * e.def.speed;
+        }
+      } else {
+        // skitter / bulwark / conductor: straight chasers.
+        if (dist > 0.01) {
+          mvx = ux * e.def.speed;
+          mvz = uz * e.def.speed;
+        }
       }
+
+      // Melee contact damage (all non-spitter types).
+      if (e.type !== 'spitter' && dist < e.def.radius + 0.8 && e.cooldown <= 0 &&
+          Math.abs(player.y - e.y) < 2) {
+        onShoot(e, ux, uz); // signal: contact hit (reuses the shoot callback slot)
+        e.cooldown = e.def.contactCooldown ?? 0.9;
+      }
+
       e.yaw = Math.atan2(ux, uz);
     }
 

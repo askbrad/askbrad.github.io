@@ -64,6 +64,7 @@ export interface CityData {
   deploy: { x: number; z: number };
   extract: { x: number; z: number };
   gates?: GateDef[];
+  relays?: Array<{ id: string; x: number; z: number }>;
 }
 
 export const CITY = raw as unknown as CityData;

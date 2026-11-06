@@ -79,6 +79,7 @@ export interface RunStats {
   credits: number;
   scrap: number;
   deaths: number;
+  kills: number;
 }
 
 let dropId = 1;
@@ -119,9 +120,10 @@ export function lightningStrike(
   if (!first) return false;
 
   const hit: EnemyState[] = [first];
-  const maxChains = fx['chains'] ?? 2;
+  // Mid-chain conductors extend the network: bonus hops accrue as you go.
+  const baseChains = fx['chains'] ?? 2;
   const hopRange = 12;
-  while (hit.length < maxChains) {
+  while (hit.length < baseChains + hit.reduce((a, e) => a + (e.def.chainBonus ?? 0), 0)) {
     const cur = hit[hit.length - 1]!;
     let next: EnemyState | null = null;
     let nextD = Infinity;
@@ -285,7 +287,7 @@ export function doPunch(
     if (d > (TUNE.punchRange ?? 2.3) + e.def.radius || Math.abs(e.y - py) > 2.2) continue;
     const dot = d < 0.01 ? 1 : (dx / d) * dirX + (dz / d) * dirZ;
     if (dot < arcCos) continue;
-    damageEnemy(e, TUNE.punchDamage, (dx / (d || 1)) * (TUNE.punchKnockback ?? 9), (dz / (d || 1)) * (TUNE.punchKnockback ?? 9));
+    damageEnemy(e, TUNE.punchDamage, (dx / (d || 1)) * (TUNE.punchKnockback ?? 9), (dz / (d || 1)) * (TUNE.punchKnockback ?? 9), facingDot(e, -dirX, -dirZ));
     hits++;
   }
   return hits;
@@ -295,6 +297,13 @@ export interface CombatRefs {
   col: CollisionWorld;
   loadout: Loadout;
   onPlayerDeath: () => void;
+}
+
+/** Facing dot vs attack approach — Bulwark frontal resist input. */
+function facingDot(e: EnemyState, atkDirX: number, atkDirZ: number): number {
+  const fy = Math.sin(e.yaw), fz = Math.cos(e.yaw);
+  const l = Math.hypot(atkDirX, atkDirZ) || 1;
+  return fy * (-atkDirX / l) + fz * (-atkDirZ / l);
 }
 
 /**
@@ -372,7 +381,7 @@ export function stepCombat(
           if (!e.alive) continue;
           const rr = e.def.radius + 0.2;
           if ((p.x - e.x) ** 2 + (p.z - e.z) ** 2 < rr * rr && Math.abs(p.y - (e.y + 0.9)) < 1.6) {
-            damageEnemy(e, p.dmg, p.vx * 0.06, p.vz * 0.06);
+            damageEnemy(e, p.dmg, p.vx * 0.06, p.vz * 0.06, facingDot(e, p.vx, p.vz));
             return true;
           }
         }
@@ -446,6 +455,7 @@ export function stepCombat(
     const lootable = e as EnemyState & { looted?: boolean };
     if (!e.alive && !lootable.looted) {
       lootable.looted = true;
+      stats.kills++;
       if (killRefund > 0) reactor.energy = Math.min(reactor.max, reactor.energy + killRefund);
       combat.drops.push({ id: dropId++, kind: 'credit', amount: e.def.credits, x: e.x + 0.4, y: e.y, z: e.z, born: time });
       combat.drops.push({ id: dropId++, kind: 'scrap', amount: e.def.scrap, x: e.x - 0.4, y: e.y, z: e.z, born: time });

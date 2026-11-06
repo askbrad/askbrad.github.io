@@ -13,6 +13,7 @@
 import type { Intent, WorldState } from './types';
 import { DEFAULT_COLLISION, openGate, topSurfaceAt, wallBlocks, type CollisionWorld } from './city/colliders';
 import { createCombat, stepCombat } from './combat';
+import { createMission, stepMission } from './mission';
 import { TUNE, canPay, createReactor } from './energy';
 import {
   aerialTier,
@@ -71,9 +72,10 @@ export function createWorld(collision: CollisionWorld = DEFAULT_COLLISION, loado
     collision,
     combat: createCombat(),
     reactor: createReactor(lo),
-    stats: { hull: TUNE.maxHull, maxHull: TUNE.maxHull, credits: lo.credits, scrap: 0, deaths: 0 },
+    stats: { hull: TUNE.maxHull, maxHull: TUNE.maxHull, credits: lo.credits, scrap: 0, deaths: 0, kills: 0 },
     loadout: lo,
     hack: { progress: 0, target: null },
+    mission: createMission(),
   };
 }
 
@@ -275,6 +277,9 @@ export function stepWorld(world: WorldState, intent: Intent, dt: number): void {
   } else if (world.hack.target === null) {
     world.hack.progress = 0;
   }
+
+  // ── Mission objectives (M5): relay channels + extraction arming ──────
+  stepMission(world.mission, p, intent, dt, world.stats.kills);
 
   // ── Combat pass ──────────────────────────────────────────────────────
   stepCombat(

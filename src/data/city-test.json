@@ -48,6 +48,11 @@
   },
   "deploy": { "x": 0, "z": 86 },
   "extract": { "x": 0, "z": 86 },
+  "relays": [
+    { "id": "relay-street", "x": 2, "z": 32 },
+    { "id": "relay-sewer", "x": 10, "z": -10 },
+    { "id": "relay-foundry", "x": -60, "z": -54 }
+  ],
   "gates": [
     {
       "id": "exchange-gate",

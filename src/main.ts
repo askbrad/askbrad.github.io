@@ -17,7 +17,10 @@ import { PlayerView, playerTarget } from './render/playerView';
 import { CombatView } from './render/combatView';
 import { Hud } from './render/hud';
 import { EngineeringUI } from './render/ui/engineering';
+import { PauseMenu } from './render/ui/pauseMenu';
 import { createLoadout, maxEnergy, modesOwned } from './sim/build';
+import { objectiveLines } from './sim/mission';
+import { createPersistence, type SaveDataV1 } from './save/persistence';
 
 const FLY_SPEED_MULT = 3;
 const AIM_PLANE_OFFSET = 1.0; // aim plane rides at chest height when grounded
@@ -30,18 +33,48 @@ function main(): void {
   const engine = new Engine(canvas, true, { stencil: false }, false);
 
   // ── Shared state ────────────────────────────────────────────────────────
-  const loadout = createLoadout(10); // start with a little test credit
+  const persistence = createPersistence(window.localStorage);
+  const saved = persistence.load();
+  const loadout = createLoadout(saved?.credits ?? 10);
+  if (saved) {
+    loadout.mode = (saved.mode as typeof loadout.mode) ?? 'STANDARD';
+    loadout.toggles = saved.toggles ?? loadout.toggles;
+    loadout.modules = (saved.modules ?? []).map((m) => ({
+      branch: m.branch as typeof loadout.modules[number]['branch'],
+      tier: m.tier,
+      sockets: m.sockets,
+    }));
+  }
+  const lifetimeScrap = saved?.scrap ?? 0;
+  const lifetimeDeaths = saved?.deaths ?? 0;
   const missionCollision: CollisionWorld = buildCollision();
   const foundryCollision = buildFoundryCollision();
 
   const foundry = buildFoundryScene(engine);
   const foundryWorld = createWorld(foundryCollision, loadout);
+  foundryWorld.stats.scrap = lifetimeScrap;
+  foundryWorld.stats.deaths = lifetimeDeaths;
   const foundryView = new PlayerView(foundry.scene);
 
   const mission = createScene(engine); // city (builds once, reused)
   let missionWorld = createWorld(missionCollision, loadout);
+  missionWorld.stats.scrap = lifetimeScrap;
+  missionWorld.stats.deaths = lifetimeDeaths;
   const missionView = new PlayerView(mission.scene);
   const combatView = new CombatView(mission.scene);
+
+  function saveNow(): void {
+    const data: SaveDataV1 = {
+      version: 1,
+      credits: loadout.credits,
+      scrap: Math.max(foundryWorld.stats.scrap, missionWorld.stats.scrap),
+      deaths: Math.max(foundryWorld.stats.deaths, missionWorld.stats.deaths),
+      mode: loadout.mode,
+      toggles: loadout.toggles,
+      modules: loadout.modules.map((m) => ({ branch: m.branch, tier: m.tier, sockets: [...m.sockets] })),
+    };
+    persistence.save(data);
+  }
 
   type SceneMode = 'foundry' | 'mission';
   let sceneMode: SceneMode = 'foundry';
@@ -55,11 +88,20 @@ function main(): void {
   const acc = createAccumulator();
 
   const hud = new Hud(hudRoot);
+  const pauseMenu = new PauseMenu(hudRoot, {
+    onResume: () => {},
+    onAbandon: () => {
+      returnToFoundry();
+      saveNow();
+    },
+    mission: () => sceneMode === 'mission',
+  });
   const engineering = new EngineeringUI(hudRoot, () => loadout, {
     onChanged: () => {
-      // Build changed → both reactors re-clamp to the new max energy.
+      // Build changed → both reactors re-clamp to the new max energy; save.
       recompute(foundryWorld);
       recompute(missionWorld);
+      saveNow();
     },
     onDeploy: () => deploy(),
     onRefill: () => {
@@ -93,6 +135,7 @@ function main(): void {
     activeCamera = foundry.camera;
     activeView = foundryView;
     sceneMode = 'foundry';
+    saveNow();
   }
 
   const pitchRad = (PITCH_DEG * Math.PI) / 180;
@@ -173,8 +216,12 @@ function main(): void {
       intent.jumpPressed = false;
     }
 
+    // Pause (Esc) — freezes the sim while the menu is open.
+    if (input.keyEdge('Escape')) pauseMenu.toggle();
+    const paused = pauseMenu.isOpen() || engineering.isOpen();
+
     // Foundry interactions (paused while the panel is open).
-    if (sceneMode === 'foundry' && !engineering.isOpen()) {
+    if (sceneMode === 'foundry' && !paused) {
       const atEng = Math.hypot(p.x - ENGINEERING_POS.x, p.z - (ENGINEERING_POS.z + 2.5)) < 2.2;
       const atAsm = Math.hypot(p.x - ASSEMBLY_POS.x, p.z - (ASSEMBLY_POS.z + 2.5)) < 2.2;
       if (atEng && input.keyEdge('KeyE')) engineering.toggle();
@@ -184,18 +231,20 @@ function main(): void {
         deploy();
       }
     }
-    if (engineering.isOpen()) {
+    if (paused) {
       intent.moveX = 0;
       intent.moveZ = 0;
       intent.fireHeld = false;
       intent.jumpPressed = false;
       intent.dashPressed = false;
+      intent.interactHeld = false;
     }
 
-    // Extract tram (mission): hold E to bank and return.
+    // Extract tram (mission): hold E to bank and return — only once objectives
+    // are complete (M5).
     if (sceneMode === 'mission') {
       const atExtract = Math.hypot(p.x - world.collision!.spawn.x, p.z - world.collision!.spawn.z) < 4;
-      if (atExtract && intent.interactHeld) {
+      if (world.mission.completed && atExtract && intent.interactHeld) {
         extractHold += clampedDt;
         if (extractHold >= EXTRACT_HOLD) {
           extractHold = 0;
@@ -204,14 +253,16 @@ function main(): void {
       } else {
         extractHold = 0;
       }
-      hud.setHackProgress(atExtract ? 1 - extractHold / EXTRACT_HOLD : null);
+      hud.setHackProgress(world.mission.completed && atExtract ? 1 - extractHold / EXTRACT_HOLD : null);
     } else {
       hud.setHackProgress(null);
     }
 
-    // 2. Fixed-step simulation.
-    advance(acc, frameDt, (dt) => stepWorld(world, intent, dt));
-    (window as { __lastIntent?: unknown }).__lastIntent = intent;
+    // Fixed-step simulation (frozen while paused).
+    if (!paused) {
+      advance(acc, frameDt, (dt) => stepWorld(world, intent, dt));
+      (window as { __lastIntent?: unknown }).__lastIntent = intent;
+    }
     (window as { __world?: unknown }).__world = world; // QA: always the active world
 
     // 3. Render sync.
@@ -224,11 +275,15 @@ function main(): void {
       mission.camera.setTarget(target);
       mission.city.update(p.x, p.y, p.z, clampedDt);
       combatView.update(world.combat, world.time);
-      // Gate visuals follow sim state.
+      // Gate + relay visuals follow sim state.
       for (const g of missionCollision.gates) {
         mission.city.setGateOpen(g.id, !missionCollision.walls.includes(g.wall));
       }
+      for (const r of world.mission.relays) {
+        mission.city.setRelayActive(r.id, r.active);
+      }
       hud.setFloor(floorLabel(floorAt(p.x, p.y, p.z)));
+      hud.setObjectives(objectiveLines(world.mission, world.stats.kills), world.mission.timer, true);
     } else {
       foundry.camera.position.set(target.x + offset.x, target.y + offset.y, target.z + offset.z);
       foundry.camera.setTarget(target);
@@ -245,7 +300,11 @@ function main(): void {
     );
     hud.setMode(`${world.loadout.mode} · ${modesOwned(loadout).length} modes`);
     if (world.hack.target) hud.setHackProgress(world.hack.progress);
-    else if (sceneMode === 'mission') hud.setHackProgress(null);
+    else if (sceneMode === 'mission') {
+      // Relay channels reuse the same progress bar.
+      const relay = world.mission.relays.find((r) => r.progress > 0 && !r.active);
+      hud.setHackProgress(relay ? relay.progress : null);
+    }
     if (world.stats.deaths !== lastDeaths) {
       lastDeaths = world.stats.deaths;
       hud.flashDeath();
@@ -258,6 +317,7 @@ function main(): void {
   // QA hook: lets the in-app browser read sim state (window.__world).
   (window as { __world?: unknown }).__world = foundryWorld;
   (window as { __scenes?: unknown }).__scenes = { foundry: foundry.scene, mission: mission.scene };
+  (window as { __save?: unknown }).__save = { saveNow, persistence };
 }
 
 main();

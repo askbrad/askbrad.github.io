@@ -98,6 +98,8 @@ export interface WorldState {
   loadout: import('./build').Loadout;
   /** Hacking state (M4): progress on the nearest gate terminal. */
   hack: { progress: number; target: string | null };
+  /** Mission objectives (M5). */
+  mission: import('./mission').MissionState;
 }
 
 /** Camera-relative input bundle consumed by the input layer (render-side only). */

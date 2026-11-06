@@ -56,6 +56,8 @@ export interface CityRender {
   update(px: number, py: number, pz: number, dt: number): void;
   /** Hide/show a gate force field (M4 hacking). */
   setGateOpen(id: string, open: boolean): void;
+  /** Energize a relay's ring when its objective completes (M5). */
+  setRelayActive(id: string, active: boolean): void;
 }
 
 export function buildCity(scene: Scene): CityRender {
@@ -156,6 +158,21 @@ export function buildCity(scene: Scene): CityRender {
     box(`terminal_screen_${g.id}`, 0.7, 0.9, 0.15, g.terminal.x, STREET_Y + 1.7, g.terminal.z + 0.45, terminalScreenMat).rotation.x = -0.35;
   }
 
+  // ── Objective relays: pylons with an activation ring ──────────────────
+  const relayMat = mat(scene, 'relayPylon', 0.3, 0.35, 0.42);
+  const relayRingOff = mat(scene, 'relayRingOff', 0.5, 0.5, 0.55, 0.4);
+  const relayRingOn = mat(scene, 'relayRingOn', 0.2, 0.95, 0.45, 1.0);
+  const relayRingMeshes = new Map<string, Mesh>();
+  for (const r of CITY.relays ?? []) {
+    box(`relay_${r.id}`, 0.7, 3.2, 0.7, r.x, STREET_Y + 1.6, r.z, relayMat);
+    const ring = MeshBuilder.CreateTorus(`relay_ring_${r.id}`, { diameter: 3, thickness: 0.12, tessellation: 32 }, scene);
+    ring.rotation.x = Math.PI / 2;
+    ring.position.set(r.x, STREET_Y + 0.2, r.z);
+    ring.material = relayRingOff;
+    ring.isPickable = false;
+    relayRingMeshes.set(r.id, ring);
+  }
+
   // ── Cutaway driver ────────────────────────────────────────────────────
   // Diablo rule: inside a building, structure AT/ABOVE the player's storey
   // goes ghost — walls from the player's storey up, floor slabs (ceilings)
@@ -214,6 +231,10 @@ export function buildCity(scene: Scene): CityRender {
     },
     setGateOpen(id, open) {
       gateMeshes.get(id)?.setEnabled(!open);
+    },
+    setRelayActive(id, active) {
+      const ring = relayRingMeshes.get(id);
+      if (ring) ring.material = active ? relayRingOn : relayRingOff;
     },
   };
 }

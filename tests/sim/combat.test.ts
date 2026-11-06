@@ -18,7 +18,7 @@ const COL = buildCollision();
 
 function makeEnemy(over: Partial<EnemyState> = {}): EnemyState {
   const def = ENEMY_TYPES['skitter']!;
-  return {
+  const e: EnemyState = {
     id: 999,
     type: 'skitter',
     def,
@@ -35,8 +35,12 @@ function makeEnemy(over: Partial<EnemyState> = {}): EnemyState {
     hitFlash: 0,
     alive: true,
     settled: true,
-    ...over,
+    lungeCd: 99,
+    lungeT: 0,
+    lungeDx: 0,
+    lungeDz: 0,
   };
+  return Object.assign(e, over);
 }
 
 function STREET(): number {
@@ -47,7 +51,7 @@ interface Ctx {
   combat: CombatState;
   reactor: ReturnType<typeof createReactor>;
   player: { x: number; y: number; z: number; yaw: number; grounded: boolean };
-  stats: { hull: number; maxHull: number; credits: number; scrap: number; deaths: number };
+  stats: { hull: number; maxHull: number; credits: number; scrap: number; deaths: number; kills: number };
 }
 
 function ctx(): Ctx {
@@ -55,7 +59,7 @@ function ctx(): Ctx {
     combat: createCombat(),
     reactor: createReactor(),
     player: { x: 0, y: 14, z: 86, yaw: 0, grounded: true },
-    stats: { hull: TUNE.maxHull, maxHull: TUNE.maxHull, credits: 0, scrap: 0, deaths: 0 },
+    stats: { hull: TUNE.maxHull, maxHull: TUNE.maxHull, credits: 0, scrap: 0, deaths: 0, kills: 0 },
   };
 }
 

@@ -16,6 +16,7 @@ export class Hud {
   private readonly deathFlash: HTMLElement;
   private hackBar: HTMLElement | null = null;
   private hackFill: HTMLElement | null = null;
+  private objPanel: HTMLElement | null = null;
 
   constructor(private readonly root: HTMLElement) {
     root.innerHTML = `
@@ -102,5 +103,26 @@ export class Hud {
   flashDeath(): void {
     this.deathFlash.classList.add('active');
     window.setTimeout(() => this.deathFlash.classList.remove('active'), 350);
+  }
+
+  /** Mission objectives tracker (M5): lines + mission clock. */
+  setObjectives(lines: string[], timerSec: number, visible: boolean): void {
+    if (!this.objPanel) {
+      this.objPanel = document.createElement('div');
+      this.objPanel.style.cssText = `
+        position: absolute; top: 110px; right: 16px; text-align: right;
+        display: flex; flex-direction: column; gap: 4px;`;
+      this.root.appendChild(this.objPanel);
+    }
+    this.objPanel.style.display = visible ? 'flex' : 'none';
+    if (!visible) return;
+    const mm = Math.floor(timerSec / 60);
+    const ss = Math.floor(timerSec % 60).toString().padStart(2, '0');
+    let html = `<div class="hud-chip" style="color:#ffc63a;">T+${mm}:${ss}</div>`;
+    for (const l of lines) {
+      const done = l.startsWith('★') || !/[0-9]\/[0-9]/.test(l) || /\/\d+\)/.test(l);
+      html += `<div class="hud-chip" style="${done ? 'color:#a0f5c5;' : ''}">${l}</div>`;
+    }
+    this.objPanel.innerHTML = html;
   }
 }
