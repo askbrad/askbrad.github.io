@@ -9,8 +9,10 @@
 
 import type { Intent, WorldState } from './types';
 import { DEFAULT_COLLISION, topSurfaceAt, wallBlocks, type CollisionWorld } from './city/colliders';
+import { createCombat, stepCombat } from './combat';
+import { TUNE, createReactor } from './energy';
 
-/** Tuning knobs (data-driven candidate; move to config when the armour stat system lands). */
+/** Tuning knobs (data-driven via data/enemies.json → player section). */
 export const MOVE_SPEED = 8;
 export const GRAVITY = -28;
 export const JUMP_V = 11; // ≈2.1 m apex — universal double-jump reaches ≈4 m
@@ -33,7 +35,10 @@ export function createWorld(collision: CollisionWorld = DEFAULT_COLLISION): Worl
       jumps: 0,
     },
     collision,
-  } as WorldState;
+    combat: createCombat(),
+    reactor: createReactor(),
+    stats: { hull: TUNE.maxHull, maxHull: TUNE.maxHull, credits: 0, scrap: 0, deaths: 0 },
+  };
 }
 
 /**
@@ -136,6 +141,23 @@ export function stepWorld(world: WorldState, intent: Intent, dt: number): void {
     p.jumps++;
   }
   if (p.grounded) p.jumps = 0;
+
+  // ── Combat pass (M3): attacks, projectiles, enemies, pickups, regen ──
+  stepCombat(
+    world.combat,
+    world.reactor,
+    p,
+    {
+      fireHeld: intent.fireHeld,
+      punchPressed: intent.punchPressed,
+      aimX: intent.aimX,
+      aimZ: intent.aimZ,
+    },
+    { col, onPlayerDeath: () => {} },
+    dt,
+    world.time,
+    world.stats,
+  );
 
   world.time += dt;
 }

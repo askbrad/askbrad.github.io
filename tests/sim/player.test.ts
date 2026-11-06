@@ -6,7 +6,17 @@ import { CITY, LAYER, STREET_Y, STOREY_H, floorAt, roofY } from '../../src/sim/c
 import type { Intent } from '../../src/sim/types';
 
 const COL = buildCollision();
-const intent = (over: Partial<Intent> = {}): Intent => ({ moveX: 0, moveZ: 0, jumpHeld: false, jumpPressed: false, ...over });
+const intent = (over: Partial<Intent> = {}): Intent => ({
+  moveX: 0,
+  moveZ: 0,
+  jumpHeld: false,
+  jumpPressed: false,
+  fireHeld: false,
+  punchPressed: false,
+  aimX: 0,
+  aimZ: 0,
+  ...over,
+});
 
 /** Run `secs` of sim time. */
 function run(world: ReturnType<typeof createWorld>, secs: number, over: Partial<Intent> = {}): void {

@@ -1,23 +1,25 @@
 /**
  * Bootstrap: engine → city scene → input → sim loop → render sync.
- * The fixed-timestep sim is authoritative; rendering (including the cutaway
- * fades) just projects sim state. Debug-fly (G) is a render-side affordance
- * for milestone fly-throughs and is removed before playtest builds (M7).
+ * The fixed-timestep sim is authoritative (movement + combat); rendering
+ * projects it. Debug-fly (G) remains a noclip affordance, removed by M7.
  */
 
-import { Engine, Vector3, Axis } from '@babylonjs/core';
+import { Engine, Matrix, Vector3, Axis } from '@babylonjs/core';
 import { advance, createAccumulator } from './sim/loop';
 import { createWorld, stepWorld } from './sim/world';
 import { STREET_Y, floorAt, floorLabel } from './sim/city/city';
-import { buildCollision } from './sim/city/colliders';
+import { buildCollision, topSurfaceAt } from './sim/city/colliders';
 import { createScene } from './render/sceneSetup';
 import { InputManager } from './render/input';
 import { CameraRig, PITCH_DEG, orbitOffset } from './render/cameraRig';
 import { PlayerView, playerTarget } from './render/playerView';
+import { CombatView } from './render/combatView';
 import { Hud } from './render/hud';
+import { reactorMax } from './sim/energy';
 
 const FLY_SPEED_MULT = 3;
 const FLY_VERT_SPEED = 14;
+const AIM_PLANE_OFFSET = 1.0; // aim plane rides at chest height
 
 function main(): void {
   const canvas = document.getElementById('game') as HTMLCanvasElement;
@@ -32,8 +34,8 @@ function main(): void {
   const acc = createAccumulator();
 
   const playerView = new PlayerView(scene);
+  const combatView = new CombatView(scene);
   const hud = new Hud(hudRoot);
-  hud.setEnergy(1);
 
   const pitchRad = (PITCH_DEG * Math.PI) / 180;
 
@@ -41,8 +43,11 @@ function main(): void {
   const target = new Vector3();
   const fwd = new Vector3();
   const right = new Vector3();
+  const rayOrigin = new Vector3();
+  const identity = Matrix.Identity();
 
   let fly = false;
+  let lastDeaths = 0;
   let last = performance.now();
 
   engine.runRenderLoop(() => {
@@ -73,10 +78,38 @@ function main(): void {
       }
     }
 
-    // 2. Fixed-step simulation. Intent sampled once per frame, held per step.
+    // 2. Mouse-cursor aim: picking ray → intersect the chest-height plane.
+    const p = world.player;
+    const pointer = input.getPointer();
+    const rect = canvas.getBoundingClientRect();
+    const px = pointer.x - rect.left;
+    const py = pointer.y - rect.top;
+    let aimX = 0;
+    let aimZ = 0;
+    if (!fly) {
+      const ray = scene.createPickingRay(px, py, identity, camera);
+      rayOrigin.copyFrom(ray.origin);
+      const dy = ray.direction.y;
+      const planeY = p.y + AIM_PLANE_OFFSET;
+      if (Math.abs(dy) > 1e-5) {
+        const t = (planeY - rayOrigin.y) / dy;
+        if (t > 0) {
+          const hx = rayOrigin.x + ray.direction.x * t - p.x;
+          const hz = rayOrigin.z + ray.direction.z * t - p.z;
+          const hl = Math.hypot(hx, hz);
+          if (hl > 0.25) {
+            aimX = hx / hl;
+            aimZ = hz / hl;
+          }
+        }
+      }
+    }
+
+    // 3. Fixed-step simulation. Intent sampled once per frame, held per step.
     const intent = input.getIntent(
       { x: fwd.x / frLen, z: fwd.z / frLen },
       { x: right.x / rtLen, z: right.z / rtLen },
+      { x: aimX, z: aimZ },
     );
     if (fly) {
       intent.moveX *= FLY_SPEED_MULT;
@@ -94,15 +127,29 @@ function main(): void {
       }
     });
 
-    // 3. Render sync.
-    playerTarget(world.player, target);
-    playerView.sync(world.player);
+    // 4. Render sync.
+    playerTarget(p, target);
+    playerView.sync(p);
+    const groundTop = topSurfaceAt(world.collision!.surfaces, p.x, p.z, p.y + 0.01);
+    playerView.updateShadow(p.x, p.y, p.z, groundTop ? groundTop.y : null);
     camera.position.set(target.x + offset.x, target.y + offset.y, target.z + offset.z);
     camera.setTarget(target);
 
-    city.update(world.player.x, world.player.y, world.player.z, clampedDt);
-    hud.setFloor(floorLabel(floorAt(world.player.x, world.player.y, world.player.z)));
+    city.update(p.x, p.y, p.z, clampedDt);
+    combatView.update(world.combat, world.time);
+    hud.setFloor(floorLabel(floorAt(p.x, p.y, p.z)));
     hud.setCameraMode(rig);
+    hud.setVitals(
+      world.stats.hull / world.stats.maxHull,
+      world.reactor.energy / reactorMax(),
+      world.stats.credits,
+      world.stats.scrap,
+      world.stats.deaths,
+    );
+    if (world.stats.deaths !== lastDeaths) {
+      lastDeaths = world.stats.deaths;
+      hud.flashDeath();
+    }
     scene.render();
   });
 

@@ -31,12 +31,16 @@ const KEY_MOVE: Record<string, [number, number]> = {
 
 const LEFT_STICK_DEADZONE = 0.18;
 const RIGHT_STICK_DEADZONE = 0.22;
+const AIM_STICK_DEADZONE = 0.3;
 /** Right-stick orbit speed, radians/sec at full deflection. */
 const STICK_ORBIT_SPEED = 2.6;
 /** Mouse orbit sensitivity, radians/pixel. */
 const MOUSE_ORBIT_SENS = 0.005;
-/** Gamepad button index (Xbox layout) for the Y button — camera snap toggle. */
-const PAD_SNAP_BUTTON = 3;
+/** Gamepad buttons (Xbox layout). */
+const PAD_SNAP_BUTTON = 3; // Y
+const PAD_FIRE_BUTTON = 7; // RT
+const PAD_PUNCH_BUTTON = 2; // X
+const PAD_RS_CLICK = 10; // right stick click — hold to orbit with the stick
 
 function applyDeadzone(v: number, dz: number): number {
   const mag = Math.abs(v);
@@ -52,6 +56,10 @@ export class InputManager {
   private wheel = 0;
   private padSnapPrev = false;
   private jumpPrev = false;
+  private punchPrev = false;
+  private lmbDown = false;
+  private pointerX = 0;
+  private pointerY = 0;
 
   constructor(canvas: HTMLCanvasElement) {
     window.addEventListener('keydown', (e) => {
@@ -68,11 +76,15 @@ export class InputManager {
         this.rmbDown = true;
         canvas.setPointerCapture(e.pointerId);
       }
+      if (e.button === 0) this.lmbDown = true;
     });
     canvas.addEventListener('pointerup', (e) => {
       if (e.button === 2) this.rmbDown = false;
+      if (e.button === 0) this.lmbDown = false;
     });
     canvas.addEventListener('pointermove', (e) => {
+      this.pointerX = e.clientX;
+      this.pointerY = e.clientY;
       if (!this.rmbDown) return;
       this.mouseDX += e.movementX;
       this.mouseDY += e.movementY;
@@ -90,9 +102,15 @@ export class InputManager {
   /**
    * Sample all devices and produce a world-space move intent.
    * `forwardXZ`/`rightXZ` are the camera's projected basis vectors so "W"
-   * always means away-from-camera regardless of orbit yaw.
+   * always means away-from-camera regardless of orbit yaw. `aimDir` is the
+   * mouse-cursor aim direction in world space (computed in main.ts); the
+   * right stick overrides it when deflected (twin-stick).
    */
-  getIntent(forwardXZ: { x: number; z: number }, rightXZ: { x: number; z: number }): Intent {
+  getIntent(
+    forwardXZ: { x: number; z: number },
+    rightXZ: { x: number; z: number },
+    aimDir: { x: number; z: number },
+  ): Intent {
     let strafe = 0;
     let forward = 0;
 
@@ -104,9 +122,26 @@ export class InputManager {
     }
 
     const pad = this.firstGamepad();
+    let aimX = aimDir.x;
+    let aimZ = aimDir.z;
     if (pad) {
       strafe += applyDeadzone(pad.axes[0] ?? 0, LEFT_STICK_DEADZONE);
       forward -= applyDeadzone(pad.axes[1] ?? 0, LEFT_STICK_DEADZONE); // stick up = forward
+
+      // Twin-stick aim: right stick (when not held for orbiting).
+      const orbiting = pad.buttons[PAD_RS_CLICK]?.pressed ?? false;
+      if (!orbiting) {
+        const rx = applyDeadzone(pad.axes[2] ?? 0, AIM_STICK_DEADZONE);
+        const ry = applyDeadzone(pad.axes[3] ?? 0, AIM_STICK_DEADZONE);
+        const alen = Math.hypot(rx, ry);
+        if (alen > 0) {
+          aimX = rightXZ.x * rx + forwardXZ.x * -ry;
+          aimZ = rightXZ.z * rx + forwardXZ.z * -ry;
+          const l = Math.hypot(aimX, aimZ) || 1;
+          aimX /= l;
+          aimZ /= l;
+        }
+      }
     }
 
     const axes: MoveAxes = { strafe, forward };
@@ -116,12 +151,26 @@ export class InputManager {
     const jumpPressed = jumpHeld && !this.jumpPrev;
     this.jumpPrev = jumpHeld;
 
+    const fireHeld = this.lmbDown || (pad?.buttons[PAD_FIRE_BUTTON]?.pressed ?? false);
+    const punchDown = this.keys.has('KeyV') || (pad?.buttons[PAD_PUNCH_BUTTON]?.pressed ?? false);
+    const punchPressed = punchDown && !this.punchPrev;
+    this.punchPrev = punchDown;
+
     return {
       moveX: rightXZ.x * axes.strafe + forwardXZ.x * axes.forward,
       moveZ: rightXZ.z * axes.strafe + forwardXZ.z * axes.forward,
       jumpHeld,
       jumpPressed,
+      fireHeld,
+      punchPressed,
+      aimX,
+      aimZ,
     };
+  }
+
+  /** Last pointer position in client coordinates (for cursor aiming). */
+  getPointer(): { x: number; y: number } {
+    return { x: this.pointerX, y: this.pointerY };
   }
 
   /**
@@ -135,10 +184,13 @@ export class InputManager {
 
     const pad = this.firstGamepad();
     if (pad) {
-      const rx = applyDeadzone(pad.axes[2] ?? 0, RIGHT_STICK_DEADZONE);
-      const ry = applyDeadzone(pad.axes[3] ?? 0, RIGHT_STICK_DEADZONE);
-      yawDelta += rx * STICK_ORBIT_SPEED * dt;
-      zoomDelta += -ry * 2.2 * dt;
+      const orbiting = pad.buttons[PAD_RS_CLICK]?.pressed ?? false;
+      if (orbiting) {
+        const rx = applyDeadzone(pad.axes[2] ?? 0, RIGHT_STICK_DEADZONE);
+        const ry = applyDeadzone(pad.axes[3] ?? 0, RIGHT_STICK_DEADZONE);
+        yawDelta += rx * STICK_ORBIT_SPEED * dt;
+        zoomDelta += -ry * 2.2 * dt;
+      }
       const y = pad.buttons[PAD_SNAP_BUTTON]?.pressed ?? false;
       if (y && !this.padSnapPrev) snapToggled = true;
       this.padSnapPrev = y;

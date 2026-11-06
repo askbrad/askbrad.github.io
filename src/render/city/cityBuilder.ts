@@ -20,9 +20,11 @@ import { Color3, Matrix, Mesh, MeshBuilder, Quaternion, StandardMaterial, Vector
 import type { Scene } from '@babylonjs/core';
 import {
   CITY,
+  LAYER,
   STOREY_H,
   STREET_Y,
   TREES,
+  floorAt,
   type BuildingDef,
   type Rect,
 } from '../../sim/city/city';
@@ -97,9 +99,12 @@ export function buildCity(scene: Scene): CityRender {
   };
 
   // ── Street + parks ────────────────────────────────────────────────────
-  box('street', E * 2, SLAB_T, E * 2, 0, STREET_Y - SLAB_T / 2, 0, streetMat);
+  const street = box('street', E * 2, SLAB_T, E * 2, 0, STREET_Y - SLAB_T / 2, 0, streetMat);
+  const sewerShell: Mesh[] = [street]; // ghosts when the player is underground
   for (const p of CITY.parks) {
-    box(`park_${p.id}`, p.x1 - p.x0, 0.06, p.z1 - p.z0, (p.x0 + p.x1) / 2, STREET_Y + 0.03, (p.z0 + p.z1) / 2, parkMat);
+    sewerShell.push(
+      box(`park_${p.id}`, p.x1 - p.x0, 0.06, p.z1 - p.z0, (p.x0 + p.x1) / 2, STREET_Y + 0.03, (p.z0 + p.z1) / 2, parkMat),
+    );
   }
 
   // ── Trees (thin instances — 2 draw calls) ─────────────────────────────
@@ -131,21 +136,29 @@ export function buildCity(scene: Scene): CityRender {
   const renders: BuildingRender[] = CITY.buildings.map((def) => buildEnterable(scene, def, tools));
 
   // ── Sewer ─────────────────────────────────────────────────────────────
-  buildSewer(CITY.sewer, { box, addRim, sewerMat });
+  buildSewer(CITY.sewer, { box, addRim, sewerMat, sewerShell });
 
   // ── Cutaway driver ────────────────────────────────────────────────────
   // Diablo rule: inside a building, structure AT/ABOVE the player's storey
   // goes ghost — walls from the player's storey up, floor slabs (ceilings)
   // strictly above it. The player's own floor stays solid underfoot.
+  // Underground (sewer): the street plane, sewer ceilings and shaft chutes
+  // ghost so the top-down camera can see the corridor.
   const vis = new Map<Mesh, { cur: number; target: number }>();
   for (const r of renders) {
     for (const arr of [...r.wallsByStorey, ...r.slabsByStorey]) {
       for (const w of arr) vis.set(w, { cur: 1, target: 1 });
     }
   }
+  const shellVis = new Map<Mesh, { cur: number; target: number }>();
+  for (const m of sewerShell) shellVis.set(m, { cur: 1, target: 1 });
 
   return {
     update(px, py, pz, dt) {
+      const underground = floorAt(px, py, pz).layer === LAYER.SEWER;
+      const shellTarget = underground ? FADED : 1;
+      for (const v of shellVis.values()) v.target = shellTarget;
+
       for (const r of renders) {
         const inside = px >= r.def.x0 && px <= r.def.x1 && pz >= r.def.z0 && pz <= r.def.z1;
         const storey = inside
@@ -167,6 +180,11 @@ export function buildCity(scene: Scene): CityRender {
       }
 
       for (const [mesh, v] of vis) {
+        v.cur += (v.target - v.cur) * Math.min(1, FADE_RATE * dt);
+        if (Math.abs(v.cur - v.target) < 0.005) v.cur = v.target;
+        mesh.visibility = v.cur;
+      }
+      for (const [mesh, v] of shellVis) {
         v.cur += (v.target - v.cur) * Math.min(1, FADE_RATE * dt);
         if (Math.abs(v.cur - v.target) < 0.005) v.cur = v.target;
         mesh.visibility = v.cur;
@@ -280,6 +298,8 @@ interface SewerTools {
   box(name: string, w: number, h: number, d: number, x: number, y: number, z: number, m: StandardMaterial): Mesh;
   addRim(r: Rect, topY: number): void;
   sewerMat: StandardMaterial;
+  /** Meshes that ghost when the player is in the sewer (ceilings, chutes, grates). */
+  sewerShell: Mesh[];
 }
 
 /** Sewer corridors: dark floor/walls/ceiling with bright-rimmed shaft holes. */
@@ -317,8 +337,8 @@ function buildSewer(sewer: typeof CITY.sewer, t: SewerTools): void {
       if (b <= a) continue;
       const len = b - a;
       const mid = (a + b) / 2;
-      if (horizontal) t.box(`sewer_ceil_${ci}_${i}`, len, 0.6, d, mid, ceilY + 0.3, cz, t.sewerMat);
-      else t.box(`sewer_ceil_${ci}_${i}`, w, 0.6, len, cx, ceilY + 0.3, mid, t.sewerMat);
+      if (horizontal) t.sewerShell.push(t.box(`sewer_ceil_${ci}_${i}`, len, 0.6, d, mid, ceilY + 0.3, cz, t.sewerMat));
+      else t.sewerShell.push(t.box(`sewer_ceil_${ci}_${i}`, w, 0.6, len, cx, ceilY + 0.3, mid, t.sewerMat));
     }
 
     // Dark chutes + street-side grate decals + bright rims at each shaft.
@@ -327,10 +347,10 @@ function buildSewer(sewer: typeof CITY.sewer, t: SewerTools): void {
       t.addRim({ x0: sh.x - 3.5, z0: sh.z - 3.5, x1: sh.x + 3.5, z1: sh.z + 3.5 }, ceilY + 0.62);
       // Chute interior (dark walls rising to street level; punched through in M2).
       const ch = STREET_Y - ceilY;
-      t.box(`shaft_chuteN_${sh.x}_${sh.z}`, 7.6, ch, 0.4, sh.x, ceilY + ch / 2, sh.z - 3.6, t.sewerMat);
-      t.box(`shaft_chuteS_${sh.x}_${sh.z}`, 7.6, ch, 0.4, sh.x, ceilY + ch / 2, sh.z + 3.6, t.sewerMat);
-      t.box(`shaft_chuteW_${sh.x}_${sh.z}`, 0.4, ch, 7.6, sh.x - 3.6, ceilY + ch / 2, sh.z, t.sewerMat);
-      t.box(`shaft_chuteE_${sh.x}_${sh.z}`, 0.4, ch, 7.6, sh.x + 3.6, ceilY + ch / 2, sh.z, t.sewerMat);
+      t.sewerShell.push(t.box(`shaft_chuteN_${sh.x}_${sh.z}`, 7.6, ch, 0.4, sh.x, ceilY + ch / 2, sh.z - 3.6, t.sewerMat));
+      t.sewerShell.push(t.box(`shaft_chuteS_${sh.x}_${sh.z}`, 7.6, ch, 0.4, sh.x, ceilY + ch / 2, sh.z + 3.6, t.sewerMat));
+      t.sewerShell.push(t.box(`shaft_chuteW_${sh.x}_${sh.z}`, 0.4, ch, 7.6, sh.x - 3.6, ceilY + ch / 2, sh.z, t.sewerMat));
+      t.sewerShell.push(t.box(`shaft_chuteE_${sh.x}_${sh.z}`, 0.4, ch, 7.6, sh.x + 3.6, ceilY + ch / 2, sh.z, t.sewerMat));
       // Street-level grate rim decal.
       t.addRim({ x0: sh.x - 3.5, z0: sh.z - 3.5, x1: sh.x + 3.5, z1: sh.z + 3.5 }, STREET_Y + 0.02);
     }

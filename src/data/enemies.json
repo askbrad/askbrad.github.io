@@ -1,0 +1,59 @@
+{
+  "player": {
+    "maxHull": 100,
+    "reactorMax": 100,
+    "regenGrounded": 10,
+    "regenAir": 4,
+    "blasterDamage": 12,
+    "blasterCost": 2,
+    "blasterRoF": 0.28,
+    "blasterSpeed": 40,
+    "blasterTtl": 1.5,
+    "lowPowerDamage": 5,
+    "punchDamage": 20,
+    "punchRange": 2.3,
+    "punchArcDeg": 75,
+    "punchKnockback": 9,
+    "punchCooldown": 0.5
+  },
+  "types": {
+    "skitter": {
+      "hp": 30,
+      "speed": 6.5,
+      "radius": 0.7,
+      "contactDamage": 8,
+      "contactCooldown": 0.9,
+      "aggroRange": 25,
+      "credits": 3,
+      "scrap": 1
+    },
+    "spitter": {
+      "hp": 45,
+      "speed": 3.2,
+      "radius": 0.9,
+      "projectileDamage": 10,
+      "projectileSpeed": 14,
+      "projectileTtl": 2.5,
+      "fireInterval": 2.2,
+      "standoffMin": 12,
+      "standoffMax": 20,
+      "aggroRange": 30,
+      "credits": 5,
+      "scrap": 2
+    }
+  },
+  "spawns": [
+    { "type": "skitter", "x": 0, "z": 60 },
+    { "type": "skitter", "x": -25, "z": 35 },
+    { "type": "skitter", "x": 25, "z": 25 },
+    { "type": "skitter", "x": -50, "z": -10 },
+    { "type": "skitter", "x": 45, "z": -20 },
+    { "type": "skitter", "x": -30, "z": -40 },
+    { "type": "skitter", "x": 10, "z": -45 },
+    { "type": "skitter", "x": 70, "z": 58 },
+    { "type": "spitter", "x": -60, "z": 25 },
+    { "type": "spitter", "x": 55, "z": 45 },
+    { "type": "spitter", "x": -75, "z": -25 },
+    { "type": "spitter", "x": 35, "z": -45 }
+  ]
+}

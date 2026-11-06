@@ -63,6 +63,21 @@
         background: linear-gradient(90deg, #2fa8d8, #7fd8f5);
         transition: width 120ms linear;
       }
+      .energy-bar.hull-bar .energy-fill {
+        background: linear-gradient(90deg, #d84a3f, #f5926a);
+      }
+      #hud-death {
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(ellipse at center, rgba(160, 20, 20, 0) 40%, rgba(160, 20, 20, 0.55) 100%);
+        opacity: 0;
+        transition: opacity 0.5s ease-out;
+        pointer-events: none;
+      }
+      #hud-death.active {
+        opacity: 1;
+        transition: opacity 0.05s ease-in;
+      }
       .hud-chip,
       .hud-stamp,
       .hud-hint {

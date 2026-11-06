@@ -15,9 +15,25 @@ export interface Intent {
   jumpHeld: boolean;
   /** True only on the frame the jump input transitions to pressed. */
   jumpPressed: boolean;
+  /** Fire button held (baseline blaster). */
+  fireHeld: boolean;
+  /** True only on the frame the punch button transitions to pressed. */
+  punchPressed: boolean;
+  /** World-space aim direction (normalized by the combat pass; 0 = facing). */
+  aimX: number;
+  aimZ: number;
 }
 
-export const NO_INTENT: Intent = { moveX: 0, moveZ: 0, jumpHeld: false, jumpPressed: false };
+export const NO_INTENT: Intent = {
+  moveX: 0,
+  moveZ: 0,
+  jumpHeld: false,
+  jumpPressed: false,
+  fireHeld: false,
+  punchPressed: false,
+  aimX: 0,
+  aimZ: 0,
+};
 
 /** The player avatar. Becomes the full armour rig in M4+. */
 export interface PlayerState {
@@ -42,6 +58,12 @@ export interface WorldState {
   player: PlayerState;
   /** Collision world (defaults to the infinite test plane in headless tests). */
   collision?: import('./city/colliders').CollisionWorld;
+  /** Combat pass state (M3). */
+  combat: import('./combat').CombatState;
+  /** Reactor energy (M3). */
+  reactor: import('./energy').Reactor;
+  /** Run stats: hull, currency, deaths (M3). */
+  stats: import('./combat').RunStats;
 }
 
 /** Camera-relative input bundle consumed by the input layer (render-side only). */

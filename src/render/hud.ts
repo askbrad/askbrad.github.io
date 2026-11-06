@@ -8,30 +8,40 @@ import type { CameraRig } from './cameraRig';
 
 export class Hud {
   private readonly energyFill: HTMLElement;
+  private readonly hullFill: HTMLElement;
   private readonly modeChip: HTMLElement;
   private readonly camChip: HTMLElement;
   private readonly floorChip: HTMLElement;
+  private readonly lootChip: HTMLElement;
+  private readonly deathFlash: HTMLElement;
 
   constructor(private readonly root: HTMLElement) {
     root.innerHTML = `
       <div class="hud-corner hud-tl">
+        <div class="hud-label">HULL</div>
+        <div class="energy-bar hull-bar"><div class="energy-fill" id="hud-hull"></div></div>
         <div class="hud-label">REACTOR</div>
-        <div class="energy-bar"><div class="energy-fill"></div></div>
+        <div class="energy-bar"><div class="energy-fill" id="hud-energy"></div></div>
         <div class="hud-chip" id="hud-mode">MODE · STANDARD</div>
         <div class="hud-chip" id="hud-floor">STREET</div>
+        <div class="hud-chip" id="hud-loot">CR 0 · SCRAP 0 · ☠ 0</div>
       </div>
       <div class="hud-corner hud-tr">
         <div class="hud-chip" id="hud-cam">CAM · FREE</div>
-        <div class="hud-stamp">THE ENGINEER — M1</div>
+        <div class="hud-stamp">THE ENGINEER — M3</div>
       </div>
       <div class="hud-corner hud-bl">
-        <div class="hud-hint">WASD / Left stick — move · RMB-drag / Right stick — orbit · Wheel — zoom · T / Y — snap · G — debug fly (Space/C up·down)</div>
+        <div class="hud-hint">WASD/L-stick move · Mouse/R-stick aim · LMB/RT fire · V/X punch · Space/A jump ×2 · T/Y snap · G debug fly</div>
       </div>
+      <div id="hud-death"></div>
     `;
-    this.energyFill = this.must('.energy-fill');
+    this.energyFill = this.must('#hud-energy');
+    this.hullFill = this.must('#hud-hull');
     this.modeChip = this.must('#hud-mode');
     this.camChip = this.must('#hud-cam');
     this.floorChip = this.must('#hud-floor');
+    this.lootChip = this.must('#hud-loot');
+    this.deathFlash = this.must('#hud-death');
   }
 
   private must(selector: string): HTMLElement {
@@ -51,6 +61,19 @@ export class Hud {
 
   setFloor(label: string): void {
     if (this.floorChip.textContent !== label) this.floorChip.textContent = label;
+  }
+
+  /** Vital bars (fractions 0..1) + loot counters. */
+  setVitals(hullFrac: number, energyFrac: number, credits: number, scrap: number, deaths: number): void {
+    this.hullFill.style.width = `${Math.round(Math.max(0, Math.min(1, hullFrac)) * 100)}%`;
+    this.energyFill.style.width = `${Math.round(Math.max(0, Math.min(1, energyFrac)) * 100)}%`;
+    this.lootChip.textContent = `CR ${credits} · SCRAP ${scrap} · ☠ ${deaths}`;
+  }
+
+  /** Brief red flash overlay on death (CSS transition handles the fade). */
+  flashDeath(): void {
+    this.deathFlash.classList.add('active');
+    window.setTimeout(() => this.deathFlash.classList.remove('active'), 350);
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
