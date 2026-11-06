@@ -18,8 +18,7 @@ import { Hud } from './render/hud';
 import { reactorMax } from './sim/energy';
 
 const FLY_SPEED_MULT = 3;
-const FLY_VERT_SPEED = 14;
-const AIM_PLANE_OFFSET = 1.0; // aim plane rides at chest height
+const AIM_PLANE_OFFSET = 1.0; // aim plane rides at chest height when grounded
 
 function main(): void {
   const canvas = document.getElementById('game') as HTMLCanvasElement;
@@ -96,9 +95,11 @@ function main(): void {
       }
     }
 
-    // 2. Mouse-cursor aim: picking ray → intersect the chest-height plane.
-    // Computed in every mode (ground, airborne, debug-fly) so aim never
-    // silently falls back to "fire forward".
+    // 2. Mouse-cursor aim: picking ray → intersect an aim plane.
+    // Grounded: plane rides at chest height. Airborne: plane drops to street
+    // level, so the cursor points at where it lands on the ground instead of
+    // a chest-height plane that parallaxes away with altitude. The aim-assist
+    // cone then bends shots onto the nearest valid target.
     const p = world.player;
     const pointer = input.getPointer();
     const rect = canvas.getBoundingClientRect();
@@ -110,7 +111,7 @@ function main(): void {
       const ray = scene.createPickingRay(px, py, identity, camera);
       rayOrigin.copyFrom(ray.origin);
       const dy = ray.direction.y;
-      const planeY = p.y + AIM_PLANE_OFFSET;
+      const planeY = p.grounded && !fly ? p.y + AIM_PLANE_OFFSET : STREET_Y + 1;
       if (Math.abs(dy) > 1e-5) {
         const t = (planeY - rayOrigin.y) / dy;
         if (t > 0) {
@@ -134,18 +135,12 @@ function main(): void {
     if (fly) {
       intent.moveX *= FLY_SPEED_MULT;
       intent.moveZ *= FLY_SPEED_MULT;
+      intent.fly = true;
+      intent.flyUp = (intent.jumpHeld ? 1 : 0) - (input.keyDown('KeyC') ? 1 : 0);
+      intent.jumpPressed = false; // A/Space drives ascent in fly mode
     }
-    advance(acc, frameDt, (dt) => {
-      stepWorld(world, intent, dt);
-      if (fly) {
-        const up = (intent.jumpHeld ? 1 : 0) - (input.keyDown('KeyC') ? 1 : 0);
-        world.player.y = Math.max(0.6, world.player.y + up * FLY_VERT_SPEED * dt);
-        // Fly mode is noclip: reset jump bookkeeping so landing is clean after.
-        world.player.grounded = false;
-        world.player.jumps = 0;
-        if (!intent.jumpHeld) world.player.vy = 0;
-      }
-    });
+    advance(acc, frameDt, (dt) => stepWorld(world, intent, dt));
+    (window as { __lastIntent?: unknown }).__lastIntent = intent;
 
     // 4. Render sync.
     playerTarget(p, target);
@@ -175,6 +170,9 @@ function main(): void {
   });
 
   window.addEventListener('resize', () => engine.resize());
+
+  // QA hook: lets the in-app browser read sim state (window.__world).
+  (window as { __world?: unknown }).__world = world;
 }
 
 main();

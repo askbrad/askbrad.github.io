@@ -6,7 +6,7 @@ import type { WorldState } from '../../src/sim/types';
 function stepped(n = 1, moveX = 0, moveZ = 0): WorldState {
   const world = createWorld();
   for (let i = 0; i < n; i++) {
-    stepWorld(world, { moveX, moveZ, jumpHeld: false, jumpPressed: false, fireHeld: false, punchPressed: false, aimX: 0, aimZ: 0 }, FIXED_DT);
+    stepWorld(world, { moveX, moveZ, jumpHeld: false, jumpPressed: false, fireHeld: false, punchPressed: false, aimX: 0, aimZ: 0, fly: false, flyUp: 0 }, FIXED_DT);
   }
   return world;
 }
@@ -36,9 +36,9 @@ describe('M0 placeholder movement', () => {
 
   it('keeps last facing when input stops', () => {
     const world = createWorld();
-    stepWorld(world, { moveX: 1, moveZ: 0, jumpHeld: false, jumpPressed: false, fireHeld: false, punchPressed: false, aimX: 0, aimZ: 0 }, FIXED_DT);
+    stepWorld(world, { moveX: 1, moveZ: 0, jumpHeld: false, jumpPressed: false, fireHeld: false, punchPressed: false, aimX: 0, aimZ: 0, fly: false, flyUp: 0 }, FIXED_DT);
     const yaw = world.player.yaw;
-    stepWorld(world, { moveX: 0, moveZ: 0, jumpHeld: false, jumpPressed: false, fireHeld: false, punchPressed: false, aimX: 0, aimZ: 0 }, FIXED_DT);
+    stepWorld(world, { moveX: 0, moveZ: 0, jumpHeld: false, jumpPressed: false, fireHeld: false, punchPressed: false, aimX: 0, aimZ: 0, fly: false, flyUp: 0 }, FIXED_DT);
     expect(world.player.yaw).toBe(yaw);
     expect(world.player.vx).toBe(0);
   });

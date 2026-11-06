@@ -298,6 +298,8 @@ function zeroIntent() {
     punchPressed: false,
     aimX: 0,
     aimZ: 0,
+    fly: false,
+    flyUp: 0,
   };
 }
 

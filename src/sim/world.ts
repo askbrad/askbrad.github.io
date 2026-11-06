@@ -19,6 +19,8 @@ export const JUMP_V = 11; // ≈2.1 m apex — universal double-jump reaches ≈
 export const STEP_H = 0.7; // max step-up/down while grounded
 export const PLAYER_R = 0.45;
 export const PLAYER_H = 1.9;
+/** Debug-fly vertical speed (QA affordance; real flight drains energy in M4). */
+export const FLY_VERT_SPEED = 14;
 
 export function createWorld(collision: CollisionWorld = DEFAULT_COLLISION): WorldState {
   return {
@@ -98,49 +100,58 @@ export function stepWorld(world: WorldState, intent: Intent, dt: number): void {
   if (len > 0.0001) p.yaw = Math.atan2(vx, vz);
 
   // ── Vertical ─────────────────────────────────────────────────────────
-  if (p.grounded) {
-    // Stick / step: highest surface at or below feet+STEP_H.
-    const top = topSurfaceAt(col.surfaces, p.x, p.z, p.y + STEP_H);
-    if (!top || top.y < p.y - STEP_H) {
-      p.grounded = false; // walked off an edge
-      p.vy = 0;
-    } else {
-      p.y = top.y; // step up ramps, down small ledges
+  if (intent.fly) {
+    // Debug-fly hover: indefinite, no gravity, no ground-stick (QA tool;
+    // real flight arrives with Aerial in M4 and drains the reactor).
+    p.y = Math.max(0.6, p.y + intent.flyUp * FLY_VERT_SPEED * dt);
+    p.vy = 0;
+    p.grounded = false;
+    p.jumps = 0;
+  } else {
+    if (p.grounded) {
+      // Stick / step: highest surface at or below feet+STEP_H.
+      const top = topSurfaceAt(col.surfaces, p.x, p.z, p.y + STEP_H);
+      if (!top || top.y < p.y - STEP_H) {
+        p.grounded = false; // walked off an edge
+        p.vy = 0;
+      } else {
+        p.y = top.y; // step up ramps, down small ledges
+      }
     }
-  }
 
-  if (!p.grounded) {
-    p.vy += GRAVITY * dt;
-    const prevY = p.y;
-    p.y += p.vy * dt;
-    if (p.vy <= 0) {
-      // Land on the highest surface crossed this step.
-      const land = topSurfaceAt(col.surfaces, p.x, p.z, prevY + 0.01);
-      if (land && land.y >= p.y) {
-        p.y = land.y;
+    if (!p.grounded) {
+      p.vy += GRAVITY * dt;
+      const prevY = p.y;
+      p.y += p.vy * dt;
+      if (p.vy <= 0) {
+        // Land on the highest surface crossed this step.
+        const land = topSurfaceAt(col.surfaces, p.x, p.z, prevY + 0.01);
+        if (land && land.y >= p.y) {
+          p.y = land.y;
+          p.vy = 0;
+          p.grounded = true;
+          p.jumps = 0;
+        }
+      }
+      if (p.y < -20) {
+        // Out-of-world safety net (should not happen; respawn is render-side).
+        p.y = col.spawn.y;
+        p.x = col.spawn.x;
+        p.z = col.spawn.z;
         p.vy = 0;
         p.grounded = true;
         p.jumps = 0;
       }
     }
-    if (p.y < -20) {
-      // Out-of-world safety net (should not happen; respawn is render-side).
-      p.y = col.spawn.y;
-      p.x = col.spawn.x;
-      p.z = col.spawn.z;
-      p.vy = 0;
-      p.grounded = true;
-      p.jumps = 0;
-    }
-  }
 
-  // ── Jump (universal double-jump; branch-specific overrides come in M4) ──
-  if (intent.jumpPressed && (p.grounded || p.jumps < 2)) {
-    p.vy = JUMP_V;
-    p.grounded = false;
-    p.jumps++;
+    // ── Jump (universal double-jump; branch-specific overrides come in M4) ──
+    if (intent.jumpPressed && (p.grounded || p.jumps < 2)) {
+      p.vy = JUMP_V;
+      p.grounded = false;
+      p.jumps++;
+    }
+    if (p.grounded) p.jumps = 0;
   }
-  if (p.grounded) p.jumps = 0;
 
   // ── Combat pass (M3): attacks, projectiles, enemies, pickups, regen ──
   stepCombat(

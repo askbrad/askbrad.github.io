@@ -165,6 +165,8 @@ export class InputManager {
       punchPressed,
       aimX,
       aimZ,
+      fly: false, // main.ts sets this for debug-fly
+      flyUp: 0,
     };
   }
 

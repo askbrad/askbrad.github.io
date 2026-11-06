@@ -22,6 +22,10 @@ export interface Intent {
   /** World-space aim direction (normalized by the combat pass; 0 = facing). */
   aimX: number;
   aimZ: number;
+  /** Debug-fly mode: hover — gravity and ground-stick are skipped. */
+  fly: boolean;
+  /** Debug-fly vertical input: -1 descend, 0 hover, +1 ascend. */
+  flyUp: number;
 }
 
 export const NO_INTENT: Intent = {
@@ -33,6 +37,8 @@ export const NO_INTENT: Intent = {
   punchPressed: false,
   aimX: 0,
   aimZ: 0,
+  fly: false,
+  flyUp: 0,
 };
 
 /** The player avatar. Becomes the full armour rig in M4+. */

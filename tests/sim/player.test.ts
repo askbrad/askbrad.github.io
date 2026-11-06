@@ -15,6 +15,8 @@ const intent = (over: Partial<Intent> = {}): Intent => ({
   punchPressed: false,
   aimX: 0,
   aimZ: 0,
+  fly: false,
+  flyUp: 0,
   ...over,
 });
 
@@ -221,6 +223,30 @@ describe('bounds & safety', () => {
   it('roof of the exchange is a walkable surface at roofY', () => {
     const b = CITY.buildings[0]!;
     expect(topSurfaceAt(COL.surfaces, (b.x0 + b.x1) / 2, (b.z0 + b.z1) / 2, roofY(b) + 1)?.y).toBeCloseTo(roofY(b), 3);
+  });
+});
+
+describe('debug-fly hover (QA movement mode)', () => {
+  it('hovers indefinitely — no gravity sink', () => {
+    const world = createWorld(COL);
+    world.player.x = 0;
+    world.player.z = 86;
+    world.player.y = 25;
+    run(world, 3, { fly: true, flyUp: 0 });
+    expect(world.player.y).toBeCloseTo(25, 2);
+    expect(world.player.vy).toBe(0);
+    expect(world.player.grounded).toBe(false);
+  });
+
+  it('ascends and descends via flyUp', () => {
+    const world = createWorld(COL);
+    world.player.x = 0;
+    world.player.z = 86;
+    world.player.y = 20;
+    run(world, 1, { fly: true, flyUp: 1 });
+    expect(world.player.y).toBeCloseTo(20 + 14, 1); // FLY_VERT_SPEED
+    run(world, 1, { fly: true, flyUp: -1 });
+    expect(world.player.y).toBeCloseTo(20, 1);
   });
 });
 
