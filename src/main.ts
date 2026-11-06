@@ -80,6 +80,25 @@ function main(): void {
   manne.applyCosmetics(cosmetics);
   manne.applyBuild(loadout);
 
+  // Debug spawn points — dev builds only (stripped from the playtest build).
+  const QA = import.meta.env.DEV;
+  const qa = QA ? new URLSearchParams(window.location.search) : null;
+  const tp = qa?.get('tp');
+  const god = qa?.has('god') ?? false;
+  if (tp === 'sewer') {
+    foundryWorld.player.x = 0;
+    foundryWorld.player.z = -30;
+    foundryWorld.player.y = 0.6;
+  } else if (tp === 'roof') {
+    foundryWorld.player.x = -60;
+    foundryWorld.player.z = -54;
+    foundryWorld.player.y = STREET_Y + 4 * 5; // exchange roof
+  } else if (tp === 'f2') {
+    foundryWorld.player.x = 58;
+    foundryWorld.player.z = 29;
+    foundryWorld.player.y = STREET_Y + 5; // crown halls storey 2
+  }
+
   function saveNow(): void {
     const data: SaveDataV1 = {
       version: 1,
@@ -214,8 +233,8 @@ function main(): void {
     const frLen = Math.hypot(fwd.x, fwd.z) || 1;
     const rtLen = Math.hypot(right.x, right.z) || 1;
 
-    // Debug-fly toggle.
-    if (input.keyEdge('KeyG')) {
+    // Debug-fly toggle (dev/QA only — stripped from the playtest build).
+    if (QA && input.keyEdge('KeyG')) {
       fly = !fly;
       if (!fly) {
         p.y = sceneMode === 'mission' ? STREET_Y : 0;
@@ -344,6 +363,7 @@ function main(): void {
     }
 
     hud.setCameraMode(rig);
+    if (god) world.stats.hull = world.stats.maxHull; // QA: never die during screenshot runs
     hud.setVitals(
       world.stats.hull / world.stats.maxHull,
       world.reactor.energy / Math.max(1, world.reactor.max),

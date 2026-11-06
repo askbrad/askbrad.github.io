@@ -70,7 +70,7 @@ export function buildCity(scene: Scene): CityRender {
   const rimMat = mat(scene, 'rim', 0.9, 0.84, 0.66, 0.35); // pale landing rims
   const wallMat = mat(scene, 'wall', 0.27, 0.32, 0.41); // cool architecture
   const blockMat = mat(scene, 'block', 0.24, 0.29, 0.37);
-  const sewerMat = mat(scene, 'sewer', 0.17, 0.18, 0.21);
+  const sewerMat = mat(scene, 'sewer', 0.27, 0.29, 0.33);
   const trunkMat = mat(scene, 'trunk', 0.3, 0.22, 0.14);
   const canopyMat = mat(scene, 'canopy', 0.22, 0.38, 0.2);
 
@@ -140,7 +140,8 @@ export function buildCity(scene: Scene): CityRender {
   const renders: BuildingRender[] = CITY.buildings.map((def) => buildEnterable(scene, def, tools));
 
   // ── Sewer ─────────────────────────────────────────────────────────────
-  buildSewer(CITY.sewer, { box, addRim, sewerMat, sewerShell });
+  const stripMat = mat(scene, 'sewerStripMat', 0.2, 0.55, 0.6, 0.9);
+  buildSewer(CITY.sewer, { box, addRim, sewerMat, stripMat, sewerShell });
 
   // ── Upgrade gates: force field + terminal ─────────────────────────────
   const gateMat = new StandardMaterial('gateField', scene);
@@ -359,6 +360,7 @@ interface SewerTools {
   box(name: string, w: number, h: number, d: number, x: number, y: number, z: number, m: StandardMaterial): Mesh;
   addRim(r: Rect, topY: number): void;
   sewerMat: StandardMaterial;
+  stripMat: StandardMaterial;
   /** Meshes that ghost when the player is in the sewer (ceilings, chutes, grates). */
   sewerShell: Mesh[];
 }
@@ -381,8 +383,22 @@ function buildSewer(sewer: typeof CITY.sewer, t: SewerTools): void {
     t.box(`sewer_wallW_${ci}`, 0.8, h, d, c.x0 - 0.4, floorY + h / 2, cz, t.sewerMat);
     t.box(`sewer_wallE_${ci}`, 0.8, h, d, c.x1 + 0.4, floorY + h / 2, cz, t.sewerMat);
 
-    // Ceiling segments with gaps at shafts (horizontal corridors run along x, vertical along z).
     const horizontal = w >= d;
+    // Emissive guide strips along the walls (readability: the corridor reads
+    // even in the dark; M5 playtest feedback said the sewer was too dark).
+    const strips = Math.max(2, Math.floor((horizontal ? w : d) / 12));
+    for (let sIdx = 0; sIdx < strips; sIdx++) {
+      const f = (sIdx + 0.5) / strips;
+      if (horizontal) {
+        t.box(`sewer_stripN_${ci}_${sIdx}`, 1.6, 0.12, 0.1, c.x0 + w * f, floorY + 1.2, c.z0 + 0.06, t.stripMat);
+        t.box(`sewer_stripS_${ci}_${sIdx}`, 1.6, 0.12, 0.1, c.x0 + w * f, floorY + 1.2, c.z1 - 0.06, t.stripMat);
+      } else {
+        t.box(`sewer_stripW_${ci}_${sIdx}`, 0.1, 0.12, 1.6, c.x0 + 0.06, floorY + 1.2, c.z0 + d * f, t.stripMat);
+        t.box(`sewer_stripE_${ci}_${sIdx}`, 0.1, 0.12, 1.6, c.x1 - 0.06, floorY + 1.2, c.z0 + d * f, t.stripMat);
+      }
+    }
+
+    // Ceiling segments with gaps at shafts (horizontal corridors run along x, vertical along z).
     const lo = horizontal ? c.x0 : c.z0;
     const hi = horizontal ? c.x1 : c.z1;
     const holes = sewer.shafts

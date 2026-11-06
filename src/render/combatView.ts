@@ -34,6 +34,8 @@ export class CombatView {
   private readonly scrapMat: StandardMaterial;
   private readonly assistRing: Mesh;
   private readonly assistRingMat: StandardMaterial;
+  private readonly blockedRing: Mesh;
+  private readonly blockedRingMat: StandardMaterial;
 
   constructor(private readonly scene: Scene) {
     this.tracerPlayerMat = mat(scene, 'tracerP', 0.95, 0.8, 0.3, 0.9); // gold (ballistic FX colour)
@@ -55,6 +57,20 @@ export class CombatView {
     this.assistRing.material = this.assistRingMat;
     this.assistRing.isPickable = false;
     this.assistRing.setEnabled(false);
+
+    // Dim red variant: cone target WITHOUT line of fire — "shot would be blocked".
+    this.blockedRing = MeshBuilder.CreateTorus('blockedRing', { diameter: 2, thickness: 0.1, tessellation: 24 }, scene);
+    this.blockedRing.rotation.x = Math.PI / 2;
+    this.blockedRingMat = new StandardMaterial('blockedRingMat', scene);
+    this.blockedRingMat.emissiveColor = new Color3(0.75, 0.12, 0.1);
+    this.blockedRingMat.diffuseColor = new Color3(0, 0, 0);
+    this.blockedRingMat.specularColor = new Color3(0, 0, 0);
+    this.blockedRingMat.alpha = 0.28;
+    this.blockedRingMat.disableDepthWrite = true;
+    this.blockedRingMat.zOffset = -2;
+    this.blockedRing.material = this.blockedRingMat;
+    this.blockedRing.isPickable = false;
+    this.blockedRing.setEnabled(false);
   }
 
   private makeEnemyMesh(type: string): EnemyMesh {
@@ -132,7 +148,9 @@ export class CombatView {
     }
     for (; ti < this.tracers.length; ti++) this.tracers[ti]!.setEnabled(false);
 
-    // ── Aim-assist target ring ─────────────────────────────────────────
+    // ── Aim-assist target rings ────────────────────────────────────────
+    // Gold ring = assisted (LOS clear); dim red ring = cone target whose shot
+    // line is blocked — "no line of fire" feedback for the playtester.
     const assist = combat.assistEnemyId !== null
       ? combat.enemies.find((e) => e.id === combat.assistEnemyId && e.alive)
       : undefined;
@@ -145,6 +163,18 @@ export class CombatView {
       this.assistRingMat.alpha = 0.35 + 0.15 * Math.sin(time * 6);
     } else {
       this.assistRing.setEnabled(false);
+    }
+    const blocked = combat.assistBlockedId !== null
+      ? combat.enemies.find((e) => e.id === combat.assistBlockedId && e.alive)
+      : undefined;
+    if (blocked && !assist) {
+      this.blockedRing.setEnabled(true);
+      const rr = (blocked.def.radius ?? 0.8) + 0.9;
+      this.blockedRing.scaling.set(rr, rr, 1);
+      this.blockedRing.position.set(blocked.x, blocked.y + 0.3, blocked.z);
+      this.blockedRingMat.alpha = 0.22 + 0.1 * Math.sin(time * 4);
+    } else {
+      this.blockedRing.setEnabled(false);
     }
 
     // ── Drops ──────────────────────────────────────────────────────────

@@ -11,6 +11,7 @@ export class Hud {
   private readonly hullFill: HTMLElement;
   private readonly modeChip: HTMLElement;
   private readonly camChip: HTMLElement;
+  private readonly hudStamp: HTMLElement;
   private readonly floorChip: HTMLElement;
   private readonly lootChip: HTMLElement;
   private readonly deathFlash: HTMLElement;
@@ -31,7 +32,7 @@ export class Hud {
       </div>
       <div class="hud-corner hud-tr">
         <div class="hud-chip" id="hud-cam">CAM · FREE</div>
-        <div class="hud-stamp">THE ENGINEER — M3</div>
+        <div class="hud-stamp" id="hud-stamp">THE ENGINEER</div>
       </div>
       <div class="hud-corner hud-bl">
         <div class="hud-hint">WASD/L-stick move · Mouse/R-stick aim · LMB/RT fire · V/X punch · Space/A jump ×2 · T/Y snap · G debug fly</div>
@@ -42,6 +43,8 @@ export class Hud {
     this.hullFill = this.must('#hud-hull');
     this.modeChip = this.must('#hud-mode');
     this.camChip = this.must('#hud-cam');
+    this.hudStamp = this.must('#hud-stamp');
+    this.hudStamp.textContent = `THE ENGINEER · PLAYTEST v${__VERSION__}`;
     this.floorChip = this.must('#hud-floor');
     this.lootChip = this.must('#hud-loot');
     this.deathFlash = this.must('#hud-death');

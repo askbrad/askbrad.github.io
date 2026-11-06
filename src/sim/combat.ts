@@ -48,6 +48,8 @@ export interface CombatState {
   hurtFlash: number;
   /** Enemy currently in the aim-assist cone (render: target ring). */
   assistEnemyId: number | null;
+  /** Cone target with NO line of fire (render: dim red ring = shot blocked). */
+  assistBlockedId: number | null;
   /** Lightning chain FX: flat segment lists [x,y,z, x,y,z, ...] with ttl. */
   bolts: Array<{ segs: number[]; ttl: number }>;
 }
@@ -93,6 +95,7 @@ export function createCombat(): CombatState {
     punchCd: 0,
     hurtFlash: 0,
     assistEnemyId: null,
+    assistBlockedId: null,
     bolts: [],
   };
 }
@@ -216,12 +219,12 @@ export function fireBlaster(
 }
 
 /**
- * Soft aim-assist: nearest alive enemy inside a small cone along the fire
- * direction, with a cheap line-of-sight check. Returns the enemy itself (the
- * shot point is its body centre) or null. Pitch-only: the caller keeps the
- * player's horizontal aim untouched — the assist decides height, never steer.
+ * Soft aim-assist target search: nearest alive enemy inside a small cone
+ * along the fire direction, with a cheap line-of-sight check. Returns the
+ * enemy plus `los` — a cone target WITHOUT line of fire comes back with
+ * `los: false` so the HUD can show feedback instead of a silent whiff.
  */
-export function pickAimAssist(
+export function pickAimTarget(
   combat: CombatState,
   px: number,
   py: number,
@@ -229,9 +232,10 @@ export function pickAimAssist(
   dirX: number,
   dirZ: number,
   walls: CollisionWorld['walls'],
-): EnemyState | null {
+): { enemy: EnemyState; los: boolean } | null {
   const CONE_COS = Math.cos((15 * Math.PI) / 180);
   let best: EnemyState | null = null;
+  let bestLos = false;
   let bestScore = -Infinity;
 
   for (const e of combat.enemies) {
@@ -243,7 +247,7 @@ export function pickAimAssist(
     const dot = (dx / dist) * dirX + (dz / dist) * dirZ;
     if (dot < CONE_COS) continue; // outside the fire cone
 
-    // Cheap LOS: sample the shot line at chest height; any wall → no assist.
+    // Cheap LOS: sample the shot line at chest height; any wall → blocked.
     const sampleY = py + 1;
     const targetY = e.y + 0.9;
     let blocked = false;
@@ -256,16 +260,31 @@ export function pickAimAssist(
         break;
       }
     }
-    if (blocked) continue;
+    if (blocked && bestLos) continue; // already holding a clear target
 
-    // Prefer tighter angle first, then closer distance.
-    const score = dot * 2 - dist / 60;
-    if (score > bestScore) {
+    // Prefer clear LOS, then tighter angle, then closer distance.
+    const score = (blocked ? 0 : 1000) + dot * 2 - dist / 60;
+    if (!best || score > bestScore) {
       bestScore = score;
       best = e;
+      bestLos = !blocked;
     }
   }
-  return best;
+  return best ? { enemy: best, los: bestLos } : null;
+}
+
+/** Back-compat wrapper: the assisted shot target (LOS-clear only). */
+export function pickAimAssist(
+  combat: CombatState,
+  px: number,
+  py: number,
+  pz: number,
+  dirX: number,
+  dirZ: number,
+  walls: CollisionWorld['walls'],
+): EnemyState | null {
+  const r = pickAimTarget(combat, px, py, pz, dirX, dirZ, walls);
+  return r && r.los ? r.enemy : null;
 }
 
 /** Melee arc: all enemies inside range+arc take damage + knockback. Returns hit count. */
@@ -344,9 +363,12 @@ export function stepCombat(
 
   // ── Player attacks ───────────────────────────────────────────────────
   // Aim assist runs every step so the HUD/ring shows the current target even
-  // between shots. Pitch-only: horizontal aim is never altered.
-  const assist = pickAimAssist(combat, player.x, player.y, player.z, aimX, aimZ, refs.col.walls);
-  combat.assistEnemyId = assist?.id ?? null;
+  // between shots. Pitch-only: horizontal aim is never altered. A cone target
+  // without LOS shows a red ring (shot would be blocked) instead of assisting.
+  const aimTarget = pickAimTarget(combat, player.x, player.y, player.z, aimX, aimZ, refs.col.walls);
+  combat.assistEnemyId = aimTarget && aimTarget.los ? aimTarget.enemy.id : null;
+  combat.assistBlockedId = aimTarget && !aimTarget.los ? aimTarget.enemy.id : null;
+  const assist = aimTarget && aimTarget.los ? aimTarget.enemy : null;
 
   if ((intent.fireHeld || intent.blasterHeld) && combat.fireCd <= 0) {
     const assistPoint = assist ? { x: assist.x, y: assist.y + 0.9, z: assist.z } : undefined;
