@@ -168,7 +168,7 @@ This project supports two workflow modes. Choose the one that fits your team siz
 Run `/start` in OpenCode to begin the guided onboarding flow.
 Or jump directly to:
 - `/concept-brainstorm` — explore game ideas from scratch
-- `/setup-engine babylonjs 8.x` — configure your engine (also: godot, unity, unreal, sfml3, raylib, bevy)
+- `/setup-engine babylonjs 9.x` — configure your engine (also: godot, unity, unreal, sfml3, raylib, bevy)
 - `/project-stage-detect` — analyze an existing project
 - `/prototype` — rapid prototype a concept
 - `/hybrid-prototype` — fast-lane prototype for discovery phase
