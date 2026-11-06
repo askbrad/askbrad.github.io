@@ -2,12 +2,14 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { FIXED_DT } from '../../src/sim/loop';
 import { createWorld, stepWorld, STEP_H } from '../../src/sim/world';
 import { buildCollision } from '../../src/sim/city/colliders';
+import { CITY } from '../../src/sim/city/city';
 import { createReactor, reactorMax, regenReactor, spend, TUNE } from '../../src/sim/energy';
 import { ENEMY_TYPES, type EnemyState } from '../../src/sim/enemies';
 import {
   createCombat,
   doPunch,
   fireBlaster,
+  pickAimAssist,
   stepCombat,
   type CombatState,
 } from '../../src/sim/combat';
@@ -208,6 +210,47 @@ describe('enemies', () => {
     stepN(c, 12);
     const d = Math.hypot(b.x - a.x, b.z - a.z);
     expect(d).toBeGreaterThanOrEqual(a.def.radius + b.def.radius - 0.01);
+  });
+});
+
+describe('aim assist & pitched shots', () => {
+  it('assists onto the nearest enemy inside the fire cone', () => {
+    const c = ctx();
+    const ahead = makeEnemy({ x: 8, z: 86, y: 14 });
+    c.combat.enemies = [ahead];
+    const t = pickAimAssist(c.combat, 0, 14, 86, 1, 0, COL.walls);
+    expect(t).not.toBeNull();
+    expect(t!.x).toBeCloseTo(8, 1);
+    expect(t!.y).toBeCloseTo(14.9, 1);
+  });
+
+  it('ignores enemies outside the 15° cone', () => {
+    const c = ctx();
+    const off = makeEnemy({ x: 6, z: 86 + 4, y: 14 }); // ~33° off-axis
+    c.combat.enemies = [off];
+    expect(pickAimAssist(c.combat, 0, 14, 86, 1, 0, COL.walls)).toBeNull();
+  });
+
+  it('ignores enemies behind walls', () => {
+    const c = ctx();
+    const b = CITY.solidBlocks[0]!; // s1: x -20..8, z -60..-40
+    const behind = makeEnemy({ x: b.x1 + 5, z: (b.z0 + b.z1) / 2, y: 14 });
+    c.combat.enemies = [behind];
+    expect(pickAimAssist(c.combat, b.x0 - 8, 14, (b.z0 + b.z1) / 2, 1, 0, COL.walls)).toBeNull();
+  });
+
+  it('bends airborne shots down onto ground enemies', () => {
+    const c = ctx();
+    const e = makeEnemy({ x: 6, z: 86, y: 14 });
+    c.combat.enemies = [e];
+    c.player.x = 0;
+    c.player.z = 86;
+    c.player.y = 20; // hovering
+    stepN(c, 1, true, false, 1, 0);
+    const proj = c.combat.projectiles[0]!;
+    expect(proj.vy).toBeLessThan(0); // pitched down toward the target
+    stepN(c, 40); // ~0.7 s of flight
+    expect(e.hp).toBeLessThan(ENEMY_TYPES['skitter']!.hp);
   });
 });
 

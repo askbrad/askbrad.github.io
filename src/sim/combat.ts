@@ -95,23 +95,95 @@ export function fireBlaster(
   z: number,
   dirX: number,
   dirZ: number,
+  target?: { x: number; y: number; z: number },
 ): { fired: boolean; lowPower: boolean } {
   const len = Math.hypot(dirX, dirZ);
   if (len < 1e-6) return { fired: false, lowPower: false };
   const paid = spend(reactor, TUNE.blasterCost);
   const dmg = paid ? TUNE.blasterDamage : TUNE.lowPowerDamage;
+
+  // Straight line to an assisted target, or level flight along the aim dir.
+  let vx: number;
+  let vy = 0;
+  let vz: number;
+  if (target) {
+    const tx = target.x - x;
+    const ty = target.y - (y + 1.15);
+    const tz = target.z - z;
+    const l3 = Math.hypot(tx, ty, tz) || 1;
+    vx = (tx / l3) * TUNE.blasterSpeed;
+    vy = (ty / l3) * TUNE.blasterSpeed;
+    vz = (tz / l3) * TUNE.blasterSpeed;
+  } else {
+    vx = (dirX / len) * TUNE.blasterSpeed;
+    vz = (dirZ / len) * TUNE.blasterSpeed;
+  }
+
   combat.projectiles.push({
     x: x + (dirX / len) * 0.7,
     y: y + 1.15,
     z: z + (dirZ / len) * 0.7,
-    vx: (dirX / len) * TUNE.blasterSpeed,
-    vy: 0,
-    vz: (dirZ / len) * TUNE.blasterSpeed,
+    vx,
+    vy,
+    vz,
     ttl: TUNE.blasterTtl,
     dmg,
     fromPlayer: true,
   });
   return { fired: true, lowPower: !paid };
+}
+
+/**
+ * Soft aim-assist: nearest alive enemy inside a small cone along the fire
+ * direction, with a cheap line-of-sight check. Returns the point to aim at
+ * (enemy body centre) or null — the player always picks the direction; the
+ * game just bends the shot onto a valid target (plan §5 feel note).
+ */
+export function pickAimAssist(
+  combat: CombatState,
+  px: number,
+  py: number,
+  pz: number,
+  dirX: number,
+  dirZ: number,
+  walls: CollisionWorld['walls'],
+): { x: number; y: number; z: number } | null {
+  const CONE_COS = Math.cos((15 * Math.PI) / 180);
+  let best: { x: number; y: number; z: number } | null = null;
+  let bestScore = -Infinity;
+
+  for (const e of combat.enemies) {
+    if (!e.alive) continue;
+    const dx = e.x - px;
+    const dz = e.z - pz;
+    const dist = Math.hypot(dx, dz);
+    if (dist < 1.5) continue; // don't assist onto point-blank bodies
+    const dot = (dx / dist) * dirX + (dz / dist) * dirZ;
+    if (dot < CONE_COS) continue; // outside the fire cone
+
+    // Cheap LOS: sample the shot line at chest height; any wall → no assist.
+    const sampleY = py + 1;
+    const targetY = e.y + 0.9;
+    let blocked = false;
+    for (let t = 2; t < dist; t += 2) {
+      const sx = px + (dx / dist) * t;
+      const sz = pz + (dz / dist) * t;
+      const sy = sampleY + ((targetY - sampleY) * t) / dist;
+      if (wallBlocks(walls, sx, sz, sy - 0.3, 0.15, 0.6)) {
+        blocked = true;
+        break;
+      }
+    }
+    if (blocked) continue;
+
+    // Prefer tighter angle first, then closer distance.
+    const score = dot * 2 - dist / 60;
+    if (score > bestScore) {
+      bestScore = score;
+      best = { x: e.x, y: e.y + 0.9, z: e.z };
+    }
+  }
+  return best;
 }
 
 /** Melee arc: all enemies inside range+arc take damage + knockback. Returns hit count. */
@@ -175,7 +247,9 @@ export function stepCombat(
 
   // ── Player attacks ───────────────────────────────────────────────────
   if (intent.fireHeld && combat.fireCd <= 0) {
-    fireBlaster(reactor, combat, player.x, player.y, player.z, aimX, aimZ);
+    // Aim assist: bend the shot onto the nearest valid target in the cone.
+    const assist = pickAimAssist(combat, player.x, player.y, player.z, aimX, aimZ, refs.col.walls);
+    fireBlaster(reactor, combat, player.x, player.y, player.z, aimX, aimZ, assist ?? undefined);
     combat.fireCd = TUNE.blasterRoF;
   }
   if (intent.punchPressed && combat.punchCd <= 0) {
@@ -218,6 +292,7 @@ export function stepCombat(
     const steps = Math.max(1, Math.ceil(dist / 0.5));
     for (let s = 0; s < steps && !dead; s++) {
       p.x += (p.vx * dt) / steps;
+      p.y += (p.vy * dt) / steps;
       p.z += (p.vz * dt) / steps;
       dead = hitBody();
     }
@@ -235,13 +310,22 @@ export function stepCombat(
     (e, ux, uz) => {
       if (e.type === 'spitter') {
         const sp = e.def;
+        // 3D shot at the player's chest — spitters can hit an airborne target.
+        const sx = e.x + ux * (sp.radius ?? 0.9);
+        const sy = e.y + 1;
+        const sz = e.z + uz * (sp.radius ?? 0.9);
+        const tx = player.x - sx;
+        const ty = player.y + 1 - sy;
+        const tz = player.z - sz;
+        const l3 = Math.hypot(tx, ty, tz) || 1;
+        const speed = sp.projectileSpeed ?? 14;
         combat.projectiles.push({
-          x: e.x + ux * (sp.radius ?? 0.9),
-          y: e.y + 1,
-          z: e.z + uz * (sp.radius ?? 0.9),
-          vx: ux * (sp.projectileSpeed ?? 14),
-          vy: 0,
-          vz: uz * (sp.projectileSpeed ?? 14),
+          x: sx,
+          y: sy,
+          z: sz,
+          vx: (tx / l3) * speed,
+          vy: (ty / l3) * speed,
+          vz: (tz / l3) * speed,
           ttl: sp.projectileTtl ?? 2.5,
           dmg: sp.projectileDamage ?? 10,
           fromPlayer: false,

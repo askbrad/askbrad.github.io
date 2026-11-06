@@ -37,6 +37,24 @@ function main(): void {
   const combatView = new CombatView(scene);
   const hud = new Hud(hudRoot);
 
+  // Debug spawn points for visual QA: ?tp=sewer | roof | f2 (+&god to freeze hull).
+  const qa = new URLSearchParams(window.location.search);
+  const tp = qa.get('tp');
+  const god = qa.has('god');
+  if (tp === 'sewer') {
+    world.player.x = 0;
+    world.player.z = -30;
+    world.player.y = 0.6;
+  } else if (tp === 'roof') {
+    world.player.x = -60;
+    world.player.z = -54;
+    world.player.y = STREET_Y + 4 * 5; // exchange roof
+  } else if (tp === 'f2') {
+    world.player.x = 58;
+    world.player.z = 29;
+    world.player.y = STREET_Y + 5; // crown halls storey 2
+  }
+
   const pitchRad = (PITCH_DEG * Math.PI) / 180;
 
   // Scratch vectors — reused every frame, no per-frame allocation.
@@ -79,6 +97,8 @@ function main(): void {
     }
 
     // 2. Mouse-cursor aim: picking ray → intersect the chest-height plane.
+    // Computed in every mode (ground, airborne, debug-fly) so aim never
+    // silently falls back to "fire forward".
     const p = world.player;
     const pointer = input.getPointer();
     const rect = canvas.getBoundingClientRect();
@@ -86,7 +106,7 @@ function main(): void {
     const py = pointer.y - rect.top;
     let aimX = 0;
     let aimZ = 0;
-    if (!fly) {
+    {
       const ray = scene.createPickingRay(px, py, identity, camera);
       rayOrigin.copyFrom(ray.origin);
       const dy = ray.direction.y;
@@ -137,6 +157,7 @@ function main(): void {
 
     city.update(p.x, p.y, p.z, clampedDt);
     combatView.update(world.combat, world.time);
+    if (god) world.stats.hull = world.stats.maxHull; // QA: never die during screenshot runs
     hud.setFloor(floorLabel(floorAt(p.x, p.y, p.z)));
     hud.setCameraMode(rig);
     hud.setVitals(

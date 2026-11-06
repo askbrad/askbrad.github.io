@@ -155,8 +155,12 @@ export function buildCity(scene: Scene): CityRender {
 
   return {
     update(px, py, pz, dt) {
+      // Underground → full x-ray: street, ceilings, chutes AND all building
+      // structure ghost so the top-down camera sees the corridor (the faint
+      // city outline above doubles as an orientation cue).
       const underground = floorAt(px, py, pz).layer === LAYER.SEWER;
       const shellTarget = underground ? FADED : 1;
+      const structureTarget: number | null = underground ? FADED : null; // null → per-storey rules
       for (const v of shellVis.values()) v.target = shellTarget;
 
       for (const r of renders) {
@@ -166,12 +170,12 @@ export function buildCity(scene: Scene): CityRender {
           : 0;
 
         for (let s = 1; s <= r.def.floors; s++) {
-          const wallTarget = inside && s >= storey ? FADED : 1;
+          const wallTarget = structureTarget ?? (inside && s >= storey ? FADED : 1);
           for (const w of r.wallsByStorey[s - 1] ?? []) {
             const v = vis.get(w);
             if (v) v.target = wallTarget;
           }
-          const slabTarget = inside && s > storey ? FADED : 1;
+          const slabTarget = structureTarget ?? (inside && s > storey ? FADED : 1);
           for (const m of r.slabsByStorey[s - 1] ?? []) {
             const v = vis.get(m);
             if (v) v.target = slabTarget;
